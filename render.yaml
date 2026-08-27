@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: linkedin-profile-api
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: LI_AT_COOKIE
+        sync: false
+      - key: JSESSIONID
+        sync: false
