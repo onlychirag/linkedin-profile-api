@@ -82,29 +82,36 @@ class BrowserScraper:
             )
 
             # Inject the li_at authentication cookie.
-            # This is the same cookie you'd have in your browser after logging in.
-            await context.add_cookies(
-                [
-                    {
-                        "name": "li_at",
-                        "value": settings.LI_AT_COOKIE,
-                        "domain": ".linkedin.com",
-                        "path": "/",
-                    }
-                ]
-            )
+            cookies = [
+                {
+                    "name": "li_at",
+                    "value": settings.LI_AT_COOKIE,
+                    "domain": ".linkedin.com",
+                    "path": "/",
+                }
+            ]
+            if settings.JSESSIONID:
+                cookies.append({
+                    "name": "JSESSIONID",
+                    "value": f'"{settings.JSESSIONID}"', # LinkedIn expects quotes in the browser cookie
+                    "domain": ".linkedin.com",
+                    "path": "/",
+                })
+            await context.add_cookies(cookies)
 
             page = await context.new_page()
 
             # Navigate to the profile page.
-            # 'networkidle' waits until there are no more than 0 network connections
-            # for at least 500ms — ensures the page is "done" loading.
-            await page.goto(
-                profile_url, wait_until="networkidle", timeout=45000
-            )
+            # 'domcontentloaded' is safer than 'networkidle' for LinkedIn as it has many background requests.
+            try:
+                await page.goto(
+                    profile_url, wait_until="domcontentloaded", timeout=45000
+                )
+            except Exception as e:
+                logger.warning(f"Browser goto timeout or error (continuing anyway): {e}")
 
             # Extra wait for JavaScript-rendered content
-            await page.wait_for_timeout(3000)
+            await page.wait_for_timeout(5000)
 
             # Scroll down the page to trigger lazy loading of sections
             # (experience, education, skills, etc. load on scroll)

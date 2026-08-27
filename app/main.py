@@ -12,6 +12,8 @@ This is the main file that:
 
 from __future__ import annotations
 
+import sys
+import asyncio
 import logging
 import time
 
@@ -21,6 +23,10 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.routes.profile import router as profile_router
+
+# Fix for Playwright + Uvicorn on Windows throwing NotImplementedError
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 # Configure logging
 logging.basicConfig(
