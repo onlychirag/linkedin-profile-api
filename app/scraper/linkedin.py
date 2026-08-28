@@ -57,6 +57,8 @@ class LinkedInScraper:
                 return merge_profiles(authenticated_http_profile, public_profile)
             if profile_has_core_data(public_profile):
                 return public_profile
+            if warnings:
+                raise ScraperError("; ".join(warnings))
             raise ScraperError("Public profile metadata was not available")
 
         browser_profile: LinkedInProfile | None = None
