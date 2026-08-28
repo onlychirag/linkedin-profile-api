@@ -128,19 +128,24 @@ LINKEDIN_STORAGE_STATE_B64=...
 ## Recommended hosting
 
 Use Render for this challenge deployment. The scraper needs a Docker runtime,
-Chromium, longer request handling than a typical serverless function, and a
-durable place for the LinkedIn browser session. Vercel is a good frontend host,
-but the browser-backed scraper is a poor fit for Vercel Functions.
+Chromium, and longer request handling than a typical serverless function. Vercel
+is a good frontend host, but the browser-backed scraper is a poor fit for Vercel
+Functions.
 
 The repo includes a `Dockerfile` and `render.yaml` for Render.
 
-Render steps:
+Free Render steps:
 
 1. Push this repository to GitHub.
-2. Create a new Render Blueprint from the repository.
-3. Use the included paid `1c-2g` web service with the `linkedin-auth` persistent disk.
-4. Set `API_KEY`, `LINKEDIN_EMAIL`, and `LINKEDIN_PASSWORD` as secrets, or set `LINKEDIN_STORAGE_STATE_B64`.
-5. Deploy. Render provides the public HTTPS URL.
+2. Create a new Render Web Service from the repository.
+3. Choose the Free plan.
+4. Set `LINKEDIN_STORAGE_STATE_B64` from your local `.auth/linkedin-state.json`.
+5. Leave `API_KEY` empty for assignment testing unless your evaluator will send it.
+6. Deploy. Render provides the public HTTPS URL.
+
+Free Render services spin down when idle and do not provide persistent disks.
+If the LinkedIn session expires or LinkedIn asks for a checkpoint, refresh the
+local session and update `LINKEDIN_STORAGE_STATE_B64` in Render.
 
 Any Docker host works too:
 
