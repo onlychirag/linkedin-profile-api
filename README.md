@@ -150,6 +150,18 @@ fetches instead. If the LinkedIn session expires or LinkedIn asks for a
 checkpoint, refresh the local session and update `LINKEDIN_STORAGE_STATE_B64` in
 Render.
 
+Vercel trial steps:
+
+1. Import this GitHub repo as a new Vercel project.
+2. Leave the framework preset as Other.
+3. Set `LINKEDIN_STORAGE_STATE_B64` as a Production environment variable.
+4. Deploy.
+
+The repo includes `api/index.py`, `pyproject.toml`, and `vercel.json` so Vercel
+uses its Python runtime with lightweight dependencies and browser scraping
+disabled. The Vercel deployment is for the authenticated HTTP scraper only; it
+does not install or launch Playwright/Chromium.
+
 Any Docker host works too:
 
 ```bash

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "env": {
+    "ENABLE_BROWSER_SCRAPER": "false",
+    "ENABLE_AUTH_HTTP_SCRAPER": "true",
+    "ENABLE_DRISSION_SCRAPER": "false",
+    "BROWSER_BACKEND": "playwright",
+    "REQUEST_TIMEOUT_MS": "60000"
+  },
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 60
+    }
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "api/index.py"
+    }
+  ]
+}
