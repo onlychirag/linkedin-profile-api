@@ -575,7 +575,6 @@ def home_page_html() -> str:
           <p class="eyebrow">Founder Radar</p>
           <h2 id="founder-title">Likely reviewers, preloaded.</h2>
         </div>
-        <p>A tiny VIP queue for the two profiles most likely to test this API, with the useful public LinkedIn details already laid out.</p>
       </div>
 
       <div class="founder-grid">
