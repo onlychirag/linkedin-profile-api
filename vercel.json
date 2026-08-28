@@ -8,11 +8,6 @@
     "BROWSER_BACKEND": "playwright",
     "REQUEST_TIMEOUT_MS": "60000"
   },
-  "functions": {
-    "api/index.py": {
-      "maxDuration": 60
-    }
-  },
   "routes": [
     {
       "src": "/(.*)",
