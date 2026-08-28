@@ -39,6 +39,7 @@ class Settings:
     allowed_origins: list[str] = None  # type: ignore[assignment]
 
     enable_browser_scraper: bool = _bool_env("ENABLE_BROWSER_SCRAPER", True)
+    enable_auth_http_scraper: bool = _bool_env("ENABLE_AUTH_HTTP_SCRAPER", True)
     enable_drission_scraper: bool = _bool_env("ENABLE_DRISSION_SCRAPER", True)
     browser_backend: str = os.getenv("BROWSER_BACKEND", "auto").strip().lower()
     playwright_headless: bool = _bool_env("PLAYWRIGHT_HEADLESS", True)

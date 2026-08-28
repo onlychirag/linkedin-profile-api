@@ -47,6 +47,7 @@ def create_app() -> FastAPI:
             "status": "ok",
             "browser_backend": settings.browser_backend,
             "browser_scraper_enabled": settings.enable_browser_scraper,
+            "auth_http_scraper_enabled": settings.enable_auth_http_scraper,
             "drission_scraper_enabled": settings.enable_drission_scraper,
             "linkedin_credentials_configured": bool(
                 settings.linkedin_email and settings.linkedin_password

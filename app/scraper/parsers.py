@@ -90,6 +90,10 @@ def clean_text(value: str | None) -> str:
         .replace("\u200b", "")
         .replace("\u2013", "-")
         .replace("\u2014", "-")
+        .replace("\u2018", "'")
+        .replace("\u2019", "'")
+        .replace("\u201c", '"')
+        .replace("\u201d", '"')
     )
     return re.sub(r"\s+", " ", value).strip()
 
@@ -199,6 +203,76 @@ def parse_detail_section_text(text: str, section: str) -> list[Any]:
     if section == "languages":
         return [_parse_language(lines) for lines in groups if lines and len(lines[0]) <= 80]
     return []
+
+
+def parse_compact_profile_education(
+    html: str,
+    name: str | None = None,
+    location: str | None = None,
+    companies: Iterable[str | None] = (),
+) -> list[EducationItem]:
+    soup = BeautifulSoup(html, "html.parser")
+    lines = _plain_lines(soup.get_text("\n"))
+    if not lines:
+        return []
+
+    school = _compact_profile_school(lines, name, location, companies)
+    try:
+        start = next(index for index, line in enumerate(lines) if line.lower() == "education")
+    except StopIteration:
+        return []
+
+    stop_lines = {
+        "accomplishments",
+        "certification",
+        "contact",
+        "languages",
+        "organizations",
+        "projects",
+        "recommendations",
+        "skills",
+        "volunteer experience",
+    }
+    body: list[str] = []
+    for line in lines[start + 1 :]:
+        lower = line.lower()
+        if lower in stop_lines:
+            break
+        if lower == "add education":
+            continue
+        if lower.startswith("have more education"):
+            continue
+        if "profile views" in lower:
+            continue
+        if _is_detail_text_noise(line, "education"):
+            continue
+        body.append(line)
+
+    dates: list[str] = []
+    text_lines: list[str] = []
+    for line in body:
+        if _is_date_line(line):
+            dates.append(line)
+        elif len(line) <= 120:
+            text_lines.append(line)
+
+    if not school and text_lines:
+        school = text_lines.pop(0)
+    degree = text_lines[0] if text_lines else None
+    field = text_lines[1] if len(text_lines) > 1 else None
+    if not any((school, degree, field, dates)):
+        return []
+
+    return [
+        EducationItem(
+            school=school,
+            degree=degree,
+            field_of_study=field,
+            start_date=dates[0] if dates else None,
+            end_date=dates[1] if len(dates) > 1 else None,
+            source_text=body,
+        )
+    ]
 
 
 def merge_profiles(primary: LinkedInProfile, fallback: LinkedInProfile) -> LinkedInProfile:
@@ -397,6 +471,9 @@ def _is_detail_text_noise(line: str, section: str) -> bool:
         "show details",
         "showcase your skills and strengths.",
         "submit",
+        "tell us why you don't want to see this",
+        "it's annoying or not interesting",
+        "if you think this goes against our professional community policies, please let us know.",
         "why am i seeing this ad?",
         "your feedback will help us improve your experience",
     }
@@ -405,6 +482,14 @@ def _is_detail_text_noise(line: str, section: str) -> bool:
     if lower.startswith("when you add new"):
         return True
     if lower.startswith("nothing to see"):
+        return True
+    if lower.startswith("tell us why"):
+        return True
+    if lower.startswith("if you think this goes against"):
+        return True
+    if "professional community policies" in lower:
+        return True
+    if "same ad too often" in lower or "annoying or not interesting" in lower:
         return True
     if lower.endswith("courses") or lower.endswith("course"):
         return True
@@ -455,6 +540,44 @@ def _groups_around_dates(lines: list[str]) -> list[list[str]]:
             groups.append(group)
         next_start = end
     return groups
+
+
+def _compact_profile_school(
+    lines: list[str],
+    name: str | None,
+    location: str | None,
+    companies: Iterable[str | None],
+) -> str | None:
+    if not name:
+        return None
+    company_names = {clean_text(company).lower() for company in companies if company}
+    try:
+        name_index = next(index for index, line in enumerate(lines) if line == name)
+    except StopIteration:
+        return None
+
+    end = min(len(lines), name_index + 16)
+    for index in range(name_index + 1, end):
+        lower = lines[index].lower()
+        if lines[index] == location or lower.endswith("area") or " connection" in lower:
+            end = index
+            break
+
+    skip = {
+        ".",
+        "premium member",
+        "share profile",
+    }
+    for line in lines[name_index + 1 : end]:
+        lower = line.lower()
+        if lower in skip or lower in company_names:
+            continue
+        if lower.endswith("member"):
+            continue
+        if set(line) <= {".", "\u00b7", "-"}:
+            continue
+        return line
+    return None
 
 
 def _parse_experience(lines: list[str]) -> ExperienceItem:
@@ -558,10 +681,22 @@ def _looks_like_skill(lines: list[str]) -> bool:
         "notifications",
         "report this ad",
         "submit",
+        "tell us why you don't want to see this",
+        "it's annoying or not interesting",
+        "if you think this goes against our professional community policies, please let us know.",
         "why am i seeing this ad?",
         "your feedback will help us improve your experience",
     }
-    return first not in blocked and len(lines[0]) <= 100
+    if first in blocked:
+        return False
+    return not any(
+        fragment in first
+        for fragment in (
+            "professional community policies",
+            "same ad too often",
+            "annoying or not interesting",
+        )
+    ) and len(lines[0]) <= 100
 
 
 def _split_company_line(line: str | None) -> tuple[str | None, str | None]:

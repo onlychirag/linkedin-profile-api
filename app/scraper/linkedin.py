@@ -13,6 +13,7 @@ from app.scraper.parsers import (
     DETAIL_SECTIONS,
     merge_profiles,
     normalize_linkedin_profile_url,
+    parse_compact_profile_education,
     parse_detail_section_html,
     parse_profile_html,
     profile_has_core_data,
@@ -20,6 +21,7 @@ from app.scraper.parsers import (
 from app.scraper.session import (
     has_persistent_user_data_dir,
     load_storage_state,
+    load_storage_state_data,
     save_storage_state,
 )
 
@@ -31,14 +33,33 @@ class LinkedInScraper:
     async def scrape(self, raw_url: str) -> LinkedInProfile:
         url, _public_identifier = normalize_linkedin_profile_url(raw_url)
         public_profile = await self._scrape_public_html(url)
+        warnings: list[str] = []
+
+        authenticated_http_profile: LinkedInProfile | None = None
+        if self.settings.enable_auth_http_scraper:
+            try:
+                authenticated_http_profile = await self._scrape_authenticated_http(url)
+            except AuthenticationRequired as exc:
+                warnings.append(str(exc))
+            except Exception as exc:
+                warnings.append(f"authenticated HTTP scrape failed: {exc}")
+
+        public_profile.extraction.warnings.extend(warnings)
+        if authenticated_http_profile is not None and (
+            not self.settings.enable_browser_scraper
+            or authenticated_http_profile.experience
+            or authenticated_http_profile.education
+        ):
+            return merge_profiles(authenticated_http_profile, public_profile)
 
         if not self.settings.enable_browser_scraper:
+            if authenticated_http_profile is not None:
+                return merge_profiles(authenticated_http_profile, public_profile)
             if profile_has_core_data(public_profile):
                 return public_profile
             raise ScraperError("Public profile metadata was not available")
 
         browser_profile: LinkedInProfile | None = None
-        warnings: list[str] = []
         for backend in self._backend_order():
             try:
                 if backend == "drission":
@@ -60,6 +81,8 @@ class LinkedInScraper:
 
         public_profile.extraction.warnings.extend(warnings)
         if browser_profile is None:
+            if authenticated_http_profile is not None:
+                return merge_profiles(authenticated_http_profile, public_profile)
             if profile_has_core_data(public_profile):
                 return public_profile
             if warnings:
@@ -113,6 +136,78 @@ class LinkedInScraper:
         except Exception as exc:
             profile = parse_profile_html("", url)
             profile.extraction.warnings.append(f"Public fetch failed: {exc}")
+            return profile
+
+    async def _scrape_authenticated_http(self, url: str) -> LinkedInProfile:
+        storage_state = load_storage_state_data(self.settings)
+        if not storage_state:
+            raise AuthenticationRequired(
+                "LinkedIn storage state is not configured. Set LINKEDIN_STORAGE_STATE_B64 "
+                "or create .auth/linkedin-state.json."
+            )
+
+        cookies = self._cookies_from_storage_state(storage_state)
+        headers = self._http_headers(mobile=False)
+        async with httpx.AsyncClient(
+            cookies=cookies,
+            headers=headers,
+            follow_redirects=True,
+            timeout=self.settings.request_timeout_ms / 1000,
+        ) as client:
+            response = await client.get(url)
+            if response.status_code in {401, 403} or self._is_auth_wall(str(response.url)):
+                raise AuthenticationRequired(
+                    "LinkedIn rejected the stored session or redirected to login."
+                )
+
+            profile = parse_profile_html(response.text, url, resolved_url=str(response.url))
+            profile.extraction.authenticated = True
+            profile.extraction.strategies.append("authenticated-http-profile")
+            if response.status_code >= 400:
+                profile.extraction.warnings.append(
+                    f"Authenticated profile fetch returned HTTP {response.status_code}"
+                )
+
+            for section in DETAIL_SECTIONS:
+                detail_url = f"{url.rstrip('/')}/details/{section}/"
+                detail_response = await client.get(detail_url)
+                if (
+                    detail_response.status_code >= 400
+                    or self._is_auth_wall(str(detail_response.url))
+                    or f"/details/{section}" not in str(detail_response.url)
+                ):
+                    profile.extraction.warnings.append(
+                        f"Skipped {section}; authenticated HTTP detail fetch failed."
+                    )
+                    continue
+                items = parse_detail_section_html(detail_response.text, section)
+                if items:
+                    setattr(profile, section, items)
+                    profile.raw_sections[section] = [
+                        getattr(item, "source_text", []) for item in items
+                    ]
+                    profile.extraction.strategies.append(f"authenticated-http-{section}")
+
+            if not profile.education:
+                mobile_response = await client.get(url, headers=self._http_headers(mobile=True))
+                if mobile_response.status_code < 400 and not self._is_auth_wall(
+                    str(mobile_response.url)
+                ):
+                    education = parse_compact_profile_education(
+                        mobile_response.text,
+                        name=profile.name,
+                        location=profile.location,
+                        companies=[item.company for item in profile.experience],
+                    )
+                    if education:
+                        profile.education = education
+                        profile.raw_sections["education"] = [
+                            item.source_text for item in education
+                        ]
+                        profile.extraction.strategies.append(
+                            "authenticated-http-compact-education"
+                        )
+
             return profile
 
     async def _scrape_with_browser(self, url: str) -> LinkedInProfile:
@@ -322,3 +417,31 @@ class LinkedInScraper:
             marker in lowered
             for marker in ("/login", "/checkpoint", "uas/login", "authwall")
         )
+
+    @staticmethod
+    def _cookies_from_storage_state(storage_state: dict[str, Any]) -> httpx.Cookies:
+        cookies = httpx.Cookies()
+        for item in storage_state.get("cookies", []):
+            domain = item.get("domain", "")
+            if "linkedin.com" not in domain:
+                continue
+            name = item.get("name")
+            value = item.get("value")
+            if not name or value is None:
+                continue
+            cookies.set(name, value, domain=domain, path=item.get("path", "/"))
+        return cookies
+
+    def _http_headers(self, mobile: bool = False) -> dict[str, str]:
+        user_agent = (
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 "
+            "Mobile/15E148 Safari/604.1"
+            if mobile
+            else self.settings.user_agent
+        )
+        return {
+            "accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "accept-language": "en-US,en;q=0.9",
+            "user-agent": user_agent,
+        }

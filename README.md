@@ -143,9 +143,12 @@ Free Render steps:
 5. Leave `API_KEY` empty for assignment testing unless your evaluator will send it.
 6. Deploy. Render provides the public HTTPS URL.
 
-Free Render services spin down when idle and do not provide persistent disks.
-If the LinkedIn session expires or LinkedIn asks for a checkpoint, refresh the
-local session and update `LINKEDIN_STORAGE_STATE_B64` in Render.
+Free Render services spin down when idle, do not provide persistent disks, and
+are too small for reliable Chromium scraping. The included free config disables
+browser launch and uses the stored LinkedIn session for authenticated HTTP HTML
+fetches instead. If the LinkedIn session expires or LinkedIn asks for a
+checkpoint, refresh the local session and update `LINKEDIN_STORAGE_STATE_B64` in
+Render.
 
 Any Docker host works too:
 
@@ -160,6 +163,7 @@ docker run -p 8000:8000 --env-file .env linkedin-profile-api
 | --- | --- | --- |
 | `API_KEY` | empty | Optional shared key required through `X-API-Key` or `api_key`. |
 | `ENABLE_BROWSER_SCRAPER` | `true` | Enables browser-backed extraction after the public metadata pass. |
+| `ENABLE_AUTH_HTTP_SCRAPER` | `true` | Uses Playwright storage-state cookies for authenticated HTTP HTML extraction before launching a browser. |
 | `BROWSER_BACKEND` | `auto` | `auto`, `drission`, or `playwright`. `auto` tries DrissionPage first and falls back to Playwright. |
 | `ENABLE_DRISSION_SCRAPER` | `true` | Enables the optional DrissionPage backend in `auto` mode. |
 | `PLAYWRIGHT_HEADLESS` | `true` | Runs Chromium headlessly. Set `false` only for local debugging. |

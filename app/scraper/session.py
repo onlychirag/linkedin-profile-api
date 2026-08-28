@@ -17,12 +17,22 @@ def has_persistent_user_data_dir(settings: Settings) -> bool:
 
 def load_storage_state(settings: Settings) -> str | dict[str, Any] | None:
     if settings.linkedin_storage_state_b64:
+        return load_storage_state_data(settings)
+
+    path = settings.linkedin_storage_state_path
+    if path.exists():
+        return str(path)
+    return None
+
+
+def load_storage_state_data(settings: Settings) -> dict[str, Any] | None:
+    if settings.linkedin_storage_state_b64:
         decoded = base64.b64decode(settings.linkedin_storage_state_b64).decode("utf-8")
         return json.loads(decoded)
 
     path = settings.linkedin_storage_state_path
     if path.exists():
-        return str(path)
+        return json.loads(path.read_text(encoding="utf-8"))
     return None
 
 

@@ -1,6 +1,7 @@
 from app.errors import InvalidLinkedInUrl
 from app.scraper.parsers import (
     normalize_linkedin_profile_url,
+    parse_compact_profile_education,
     parse_detail_section_html,
     parse_detail_section_text,
     parse_profile_html,
@@ -188,6 +189,47 @@ def test_parse_education_from_rendered_detail_text() -> None:
     """
 
     items = parse_detail_section_text(text, "education")
+
+    assert len(items) == 1
+    assert items[0].school == "Gujarat Technological University (GTU)"
+    assert items[0].degree == "Bachelor of Engineering"
+    assert items[0].field_of_study == "Business/Commerce, General"
+    assert items[0].start_date == "2019"
+    assert items[0].end_date == "2023"
+
+
+def test_parse_compact_profile_education_uses_top_card_school() -> None:
+    html = """
+    <main>
+      <p>Share Profile</p>
+      <h1>Chirag Kakwani</h1>
+      <p>Premium member</p>
+      <p>.</p>
+      <p>Gujarat Technological University (GTU)</p>
+      <p>Walmart Global Tech India</p>
+      <p>Greater Delhi Area</p>
+      <h2>Experience</h2>
+      <p>Add experience</p>
+      <p>May 2024</p>
+      <p>-</p>
+      <p>Jul 2026</p>
+      <p>Education</p>
+      <p>Add education</p>
+      <p>Bachelor of Engineering</p>
+      <p>Business/Commerce, General</p>
+      <p>2019</p>
+      <p>2023</p>
+      <p>Have more education?</p>
+      <p>Volunteer Experience</p>
+    </main>
+    """
+
+    items = parse_compact_profile_education(
+        html,
+        name="Chirag Kakwani",
+        location="Greater Delhi Area",
+        companies=["Walmart Global Tech India"],
+    )
 
     assert len(items) == 1
     assert items[0].school == "Gujarat Technological University (GTU)"
