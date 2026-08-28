@@ -7,7 +7,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: ENABLE_BROWSER_SCRAPER
-        value: "false"
+        value: "true"
       - key: ENABLE_AUTH_HTTP_SCRAPER
         value: "true"
       - key: ENABLE_DRISSION_SCRAPER
