@@ -34,6 +34,9 @@ def test_root_endpoint_serves_main_page() -> None:
 
     assert response.status_code == 200
     assert "LinkedIn profile data" in response.text
+    assert "Founder Radar" in response.text
+    assert "Meet Shah" in response.text
+    assert "Padam Kataria" in response.text
     assert "Profile Lookup" in response.text
 
 

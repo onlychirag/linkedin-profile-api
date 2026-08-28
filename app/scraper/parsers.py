@@ -171,9 +171,9 @@ def parse_detail_section_html(html: str, section: str) -> list[Any]:
     if _section_is_empty(full_text, section):
         return []
     groups = [
-        lines
+        _trim_detail_group_lines(lines)
         for lines in _candidate_item_lines(soup)
-        if _looks_like_detail_group(lines, section)
+        if _looks_like_detail_group(_trim_detail_group_lines(lines), section)
     ]
     if not groups:
         return parse_detail_section_text(full_text, section)
@@ -256,10 +256,15 @@ def parse_compact_profile_education(
         elif len(line) <= 120:
             text_lines.append(line)
 
-    if not school and text_lines:
-        school = text_lines.pop(0)
-    degree = text_lines[0] if text_lines else None
-    field = text_lines[1] if len(text_lines) > 1 else None
+    if text_lines and _looks_like_school_line(text_lines[0]):
+        school = text_lines[0]
+        degree = text_lines[1] if len(text_lines) > 1 else None
+        field = text_lines[2] if len(text_lines) > 2 else None
+    else:
+        if not school and text_lines:
+            school = text_lines.pop(0)
+        degree = text_lines[0] if text_lines else None
+        field = text_lines[1] if len(text_lines) > 1 else None
     if not any((school, degree, field, dates)):
         return []
 
@@ -355,12 +360,13 @@ def _looks_like_detail_group(lines: list[str], section: str) -> bool:
         "let the right people know",
         "conversations today",
         "stay up to date",
+        "more profiles for you",
     )
     if any(fragment in joined for fragment in blocked_fragments):
         return False
 
     if section in {"experience", "education"}:
-        return any(_is_date_line(line) for line in lines) or len(lines) >= 3
+        return any(_is_date_line(line) for line in lines)
     if section == "certifications":
         return len(lines) >= 2
     if section in {"skills", "languages"}:
@@ -409,6 +415,7 @@ def _section_body_lines(text: str, section: str) -> list[str]:
         "small business",
         "talent solutions",
         "who your viewers also viewed",
+        "more profiles for you",
     }
     raw_lines = _plain_lines(text)
     start = None
@@ -453,6 +460,7 @@ def _is_detail_text_noise(line: str, section: str) -> bool:
         "add languages",
         "add section",
         "add skills",
+        "all",
         "don't want to see this",
         "enhance profile",
         "enhance with ai",
@@ -461,9 +469,12 @@ def _is_detail_text_noise(line: str, section: str) -> bool:
         "home",
         "i don't want to see this ad in my feed",
         "i've seen the same ad too often",
+        "industry knowledge",
+        "interpersonal skills",
         "jobs",
         "manage your ad preferences",
         "me",
+        "more profiles for you",
         "open to",
         "private to you",
         "report this ad",
@@ -472,6 +483,7 @@ def _is_detail_text_noise(line: str, section: str) -> bool:
         "showcase your skills and strengths.",
         "submit",
         "tell us why you don't want to see this",
+        "tools & technologies",
         "it's annoying or not interesting",
         "if you think this goes against our professional community policies, please let us know.",
         "why am i seeing this ad?",
@@ -494,6 +506,8 @@ def _is_detail_text_noise(line: str, section: str) -> bool:
     if lower.endswith("courses") or lower.endswith("course"):
         return True
     if re.fullmatch(r"\d+\s+notifications?", lower):
+        return True
+    if re.fullmatch(r"[\u00b7. ]*\d(?:st|nd|rd|th)?\+?", lower):
         return True
     if set(line) <= {"*"}:
         return True
@@ -542,6 +556,21 @@ def _groups_around_dates(lines: list[str]) -> list[list[str]]:
     return groups
 
 
+def _trim_detail_group_lines(lines: list[str]) -> list[str]:
+    stop_markers = {
+        "more profiles for you",
+        "people also viewed",
+        "people you may know",
+        "who your viewers also viewed",
+    }
+    trimmed: list[str] = []
+    for line in lines:
+        if line.lower() in stop_markers:
+            break
+        trimmed.append(line)
+    return trimmed
+
+
 def _compact_profile_school(
     lines: list[str],
     name: str | None,
@@ -565,12 +594,18 @@ def _compact_profile_school(
 
     skip = {
         ".",
+        "joined 2018",
+        "joined 2019",
+        "joined 2020",
+        "joined 2021",
+        "joined 2022",
+        "joined 2023",
         "premium member",
         "share profile",
     }
     for line in lines[name_index + 1 : end]:
         lower = line.lower()
-        if lower in skip or lower in company_names:
+        if lower in skip or lower in company_names or lower.startswith("joined "):
             continue
         if lower.endswith("member"):
             continue
@@ -580,7 +615,26 @@ def _compact_profile_school(
     return None
 
 
+def _looks_like_school_line(line: str) -> bool:
+    lower = line.lower()
+    return any(
+        token in lower
+        for token in (
+            "academy",
+            "college",
+            "institute",
+            "school",
+            "university",
+            "bits",
+            "iit",
+            "pilani",
+            "roorkee",
+        )
+    )
+
+
 def _parse_experience(lines: list[str]) -> ExperienceItem:
+    lines = _normalize_experience_lines(lines)
     date_index = _first_index(lines, _is_date_line)
     company_line = _line_at(lines, 1 if date_index != 1 else 2)
     company, employment_type = _split_company_line(company_line)
@@ -612,6 +666,15 @@ def _parse_experience(lines: list[str]) -> ExperienceItem:
         description=[line for index, line in enumerate(lines) if index not in used],
         source_text=lines,
     )
+
+
+def _normalize_experience_lines(lines: list[str]) -> list[str]:
+    if len(lines) < 3:
+        return lines
+    date_index = _first_index(lines, _is_date_line)
+    if date_index == 2 and lines[0].lstrip().startswith("-") and not lines[1].lstrip().startswith("-"):
+        return lines[1:]
+    return lines
 
 
 def _parse_education(lines: list[str]) -> EducationItem:
@@ -668,20 +731,27 @@ def _parse_language(lines: list[str]) -> LanguageItem:
 def _looks_like_skill(lines: list[str]) -> bool:
     first = lines[0].lower()
     blocked = {
+        "all",
         "ad options",
+        "connect",
         "don't want to see this",
+        "follow",
         "hide or report this ad",
         "i don't want to see this ad in my feed",
         "i've seen the same ad too often",
+        "industry knowledge",
+        "interpersonal skills",
         "jobs",
         "linkedin",
         "manage your ad preferences",
         "messaging",
+        "more profiles for you",
         "my network",
         "notifications",
         "report this ad",
         "submit",
         "tell us why you don't want to see this",
+        "tools & technologies",
         "it's annoying or not interesting",
         "if you think this goes against our professional community policies, please let us know.",
         "why am i seeing this ad?",
@@ -692,6 +762,7 @@ def _looks_like_skill(lines: list[str]) -> bool:
     return not any(
         fragment in first
         for fragment in (
+            "get api for any ehr",
             "professional community policies",
             "same ad too often",
             "annoying or not interesting",
@@ -733,6 +804,8 @@ def _split_date_line(line: str | None) -> tuple[str | None, str | None, str | No
 
 
 def _is_date_line(line: str) -> bool:
+    if re.search(r"\d{5,}", line):
+        return False
     return bool(DATE_RANGE_RE.search(line)) and any(char.isdigit() for char in line)
 
 

@@ -47,12 +47,16 @@ def home_page_html() -> str:
       --code: #101828;
     }
     * { box-sizing: border-box; }
+    html {
+      overflow-x: clip;
+    }
     body {
       margin: 0;
       min-height: 100vh;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg);
       color: var(--ink);
+      overflow-x: clip;
     }
     .topbar {
       border-bottom: 1px solid var(--line);
@@ -190,6 +194,8 @@ def home_page_html() -> str:
     }
     code {
       display: block;
+      min-width: 0;
+      max-width: 100%;
       overflow-wrap: anywhere;
       border: 1px solid var(--line);
       border-radius: 6px;
@@ -197,6 +203,158 @@ def home_page_html() -> str:
       padding: 12px;
       color: var(--ink);
       font: 13px/1.5 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    }
+    .founder-radar {
+      margin: 10px 0 24px;
+    }
+    .section-heading {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+    .eyebrow {
+      margin: 0 0 4px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .section-heading h2 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+    .section-heading p:last-child {
+      margin: 0;
+      max-width: 420px;
+      color: var(--muted);
+      line-height: 1.5;
+      text-align: right;
+    }
+    .founder-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      min-width: 0;
+    }
+    .founder-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+      padding: 16px;
+      min-width: 0;
+    }
+    .founder-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+    .person {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .person > div:last-child {
+      min-width: 0;
+    }
+    .avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      color: #ffffff;
+      background: #0f766e;
+      font-weight: 900;
+    }
+    .avatar.alt { background: #7c3aed; }
+    .founder-card h3 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.2;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+    .founder-card h4 {
+      margin: 16px 0 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 850;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .role {
+      margin: 0;
+      color: var(--ink);
+      font-weight: 750;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .pill {
+      max-width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel);
+      padding: 6px 10px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      line-height: 1.2;
+      overflow-wrap: anywhere;
+    }
+    .timeline {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .timeline li {
+      border-left: 3px solid var(--accent);
+      padding-left: 10px;
+      color: var(--muted);
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+    }
+    .timeline strong {
+      color: var(--ink);
+    }
+    .founder-actions {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .target-button {
+      margin: 0;
+      width: auto;
+      min-height: 40px;
+      padding: 0 14px;
+    }
+    .linkedin-link {
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 12px;
+      background: var(--panel);
+      color: var(--ink);
     }
     .workspace {
       display: grid;
@@ -292,6 +450,7 @@ def home_page_html() -> str:
     .status.ok { color: var(--ok); }
     .status.error { color: var(--danger); }
     pre {
+      min-width: 0;
       min-height: 520px;
       max-height: calc(100vh - 190px);
       margin: 0;
@@ -317,18 +476,52 @@ def home_page_html() -> str:
       .topbar { background: rgba(17, 24, 39, 0.9); }
     }
     @media (max-width: 840px) {
-      .topbar-inner, main { width: min(100vw - 24px, 720px); }
+      .topbar-inner, main {
+        width: calc(100vw - 24px);
+        max-width: 720px;
+      }
       .topbar-inner {
         min-height: auto;
         padding: 12px 0;
         align-items: flex-start;
         flex-direction: column;
       }
-      nav { justify-content: flex-start; }
+      nav {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        width: 100%;
+        justify-content: stretch;
+      }
+      nav a {
+        min-width: 0;
+        justify-content: center;
+        padding: 0 8px;
+        text-align: center;
+      }
       .intro, .workspace { grid-template-columns: 1fr; }
+      .intro, .endpoint, .workspace, .panel, .founder-radar, .founder-card {
+        width: 100%;
+        max-width: 100%;
+      }
+      .headline { min-width: 0; }
+      .section-heading {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .section-heading p:last-child { text-align: left; }
+      .founder-grid { grid-template-columns: 1fr; }
+      .founder-actions { grid-template-columns: 1fr; }
+      .target-button { width: 100%; }
       .status-grid { grid-template-columns: 1fr; }
       .summary { grid-template-columns: 1fr; }
-      h1 { font-size: 38px; }
+      h1 {
+        width: 100%;
+        max-width: 100%;
+        font-size: 34px;
+        overflow-wrap: break-word;
+      }
+      .subhead { max-width: 100%; }
+      code { word-break: break-all; }
       pre { min-height: 340px; max-height: none; }
     }
   </style>
@@ -342,6 +535,7 @@ def home_page_html() -> str:
       </div>
       <nav aria-label="Primary">
         <a href="/docs">Docs</a>
+        <a href="#founders">Founder Radar</a>
         <a href="/health">Health</a>
         <a href="/api/profile?url=https%3A%2F%2Fwww.linkedin.com%2Fin%2Fchirag-kakwani-8b4055284%2F">Sample JSON</a>
       </nav>
@@ -373,6 +567,95 @@ def home_page_html() -> str:
         <code>/api/profile?url=https://www.linkedin.com/in/example/</code>
         <a href="/openapi.json">OpenAPI schema</a>
       </aside>
+    </section>
+
+    <section class="founder-radar" id="founders" aria-labelledby="founder-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Founder Radar</p>
+          <h2 id="founder-title">Likely reviewers, preloaded.</h2>
+        </div>
+        <p>A tiny VIP queue for the two profiles most likely to test this API, with the useful public LinkedIn details already laid out.</p>
+      </div>
+
+      <div class="founder-grid">
+        <article class="founder-card">
+          <div class="founder-head">
+            <div class="person">
+              <div class="avatar" aria-hidden="true">MS</div>
+              <div>
+                <h3>Meet Shah</h3>
+                <p class="role">Co-Founder and CTO at Tross (Previously Ayden)</p>
+              </div>
+            </div>
+          </div>
+          <div class="pill-row">
+            <span class="pill">San Francisco, California, United States</span>
+            <span class="pill">IIT Roorkee</span>
+            <span class="pill">Backend, security, infra</span>
+          </div>
+
+          <h4>Experience</h4>
+          <ul class="timeline">
+            <li><strong>Tross</strong> - Co-Founder and CTO, Jun 2025 to Present.</li>
+            <li><strong>BharatX</strong> - Founding Engineer across backend, risk underwriting, and infra; acquired by Flipkart.</li>
+            <li><strong>Entrepreneur First</strong> - Entrepreneur in Residence, Jul 2023 to Dec 2023.</li>
+            <li><strong>Shape</strong> - Founding Software Engineer on a natural language database engine, Jan 2023 to Jun 2023.</li>
+            <li><strong>Microsoft</strong> - Software/Security Engineering Intern building phishing detection, May 2022 to Jul 2022.</li>
+            <li><strong>Hevo Data</strong> - Software Engineering Intern on internal monitoring, Nov 2021 to Apr 2022.</li>
+            <li><strong>GSoC and open source</strong> - Terasology Foundation and SDSLabs work across 2020 to 2021.</li>
+          </ul>
+
+          <h4>Education</h4>
+          <ul class="timeline">
+            <li><strong>Indian Institute of Technology, Roorkee</strong> - BTech, Computer Science, 2019 to 2023.</li>
+          </ul>
+
+          <div class="founder-actions">
+            <button class="target-button" type="button" data-profile-url="https://www.linkedin.com/in/meetcshah19/">Scrape Meet</button>
+            <a class="linkedin-link" href="https://www.linkedin.com/in/meetcshah19/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+          </div>
+        </article>
+
+        <article class="founder-card">
+          <div class="founder-head">
+            <div class="person">
+              <div class="avatar alt" aria-hidden="true">PK</div>
+              <div>
+                <h3>Padam Kataria</h3>
+                <p class="role">Co-Founder at Tross (Previously Ayden)</p>
+              </div>
+            </div>
+          </div>
+          <div class="pill-row">
+            <span class="pill">San Francisco Bay Area</span>
+            <span class="pill">BITS Pilani</span>
+            <span class="pill">Product, fintech, GTM</span>
+          </div>
+
+          <h4>Experience</h4>
+          <ul class="timeline">
+            <li><strong>Tross</strong> - Co-Founder, Dec 2025 to Present.</li>
+            <li><strong>Career break</strong> - Personal goal pursuit, running, cycling, AI tools, and travel, Feb 2025 to Jun 2025.</li>
+            <li><strong>BharatX</strong> - Business Head, May 2024 to Feb 2025; acquired by Super.money / Flipkart.</li>
+            <li><strong>Zenifi</strong> - Healthcare fintech, Apr 2023 to May 2024; acquired by BharatX.</li>
+            <li><strong>Navi</strong> - Product work on personal loans, mandates, KYC, and account aggregator flows, Jan 2022 to Apr 2023.</li>
+            <li><strong>Hallparty</strong> - Founding Member across recruiting, product, and user research, Sep 2020 to Feb 2021.</li>
+            <li><strong>Sprinklr</strong> - Product work in customer experience management, 2021.</li>
+          </ul>
+
+          <h4>Education</h4>
+          <ul class="timeline">
+            <li><strong>BITS Pilani</strong> - B.E. (Hons.), Electronics and Instrumentation, 2018 to 2022.</li>
+            <li><strong>DPS R.K. Puram</strong> - Physics, Chemistry, and Mathematics.</li>
+          </ul>
+
+          <div class="founder-actions">
+            <button class="target-button" type="button" data-profile-url="https://www.linkedin.com/in/padamkataria/">Scrape Padam</button>
+            <a class="linkedin-link" href="https://www.linkedin.com/in/padamkataria/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+          </div>
+        </article>
+      </div>
     </section>
 
     <div class="workspace">
@@ -439,6 +722,13 @@ def home_page_html() -> str:
         ? String(payload.education.length)
         : "-";
     }
+
+    document.querySelectorAll("[data-profile-url]").forEach((targetButton) => {
+      targetButton.addEventListener("click", () => {
+        input.value = targetButton.dataset.profileUrl;
+        form.requestSubmit();
+      });
+    });
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();

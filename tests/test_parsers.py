@@ -144,6 +144,73 @@ def test_empty_sections_ignore_ad_preference_modal_text() -> None:
     ) == []
 
 
+def test_skill_parser_ignores_recommendation_and_category_noise() -> None:
+    text = """
+    Skills
+    All
+    Industry Knowledge
+    Tools & Technologies
+    More profiles for you
+    Meet Shah
+    Follow
+    Profile language
+    English
+    """
+
+    assert parse_detail_section_text(text, "skills") == []
+
+
+def test_experience_parser_trims_more_profiles_block() -> None:
+    html = """
+    <main>
+      <ul>
+        <li class="pvs-list__paged-list-item">
+          <span>Open Source Developer</span>
+          <span>The Terasology Foundation \u00b7 Freelance</span>
+          <span>May 2020 - Jun 2021 \u00b7 1 yr 2 mos</span>
+          <span>More profiles for you</span>
+          <span>Padam Kataria</span>
+        </li>
+      </ul>
+    </main>
+    """
+
+    items = parse_detail_section_html(html, "experience")
+
+    assert len(items) == 1
+    assert items[0].title == "Open Source Developer"
+    assert items[0].description == []
+
+
+def test_experience_parser_does_not_treat_money_as_date() -> None:
+    text = """
+    Experience
+    - Did in-depth user research with 20+ teens in US
+    - Created wireframes
+    - Led conversations that led to savings of $10000
+    Education
+    """
+
+    assert parse_detail_section_text(text, "experience") == []
+
+
+def test_experience_parser_skips_stray_leading_bullet_before_role() -> None:
+    text = """
+    Experience
+    - Led conversations with growth hackers in US and saved $10000
+    Sprinklr
+    2021 - 2021
+    Customer experience management domain
+    Education
+    """
+
+    items = parse_detail_section_text(text, "experience")
+
+    assert len(items) == 1
+    assert items[0].title == "Sprinklr"
+    assert items[0].start_date == "2021"
+
+
 def test_parse_experience_from_rendered_detail_text() -> None:
     text = """
     Home
@@ -237,3 +304,34 @@ def test_parse_compact_profile_education_uses_top_card_school() -> None:
     assert items[0].field_of_study == "Business/Commerce, General"
     assert items[0].start_date == "2019"
     assert items[0].end_date == "2023"
+
+
+def test_parse_compact_profile_education_prefers_section_school() -> None:
+    html = """
+    <main>
+      <h1>Meet Shah</h1>
+      <p>Joined 2020</p>
+      <p>Tross (Previously Ayden)</p>
+      <p>San Francisco, California, United States</p>
+      <h2>Education</h2>
+      <p>Add education</p>
+      <p>Indian Institute of Technology, Roorkee</p>
+      <p>Bachelor of Technology - BTech</p>
+      <p>Computer Science</p>
+      <p>2019</p>
+      <p>2023</p>
+      <p>Volunteer Experience</p>
+    </main>
+    """
+
+    items = parse_compact_profile_education(
+        html,
+        name="Meet Shah",
+        location="San Francisco, California, United States",
+        companies=["Tross (Previously Ayden)"],
+    )
+
+    assert len(items) == 1
+    assert items[0].school == "Indian Institute of Technology, Roorkee"
+    assert items[0].degree == "Bachelor of Technology - BTech"
+    assert items[0].field_of_study == "Computer Science"
