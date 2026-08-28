@@ -24,516 +24,256 @@ def get_scraper() -> LinkedInScraper:
 
 
 def home_page_html() -> str:
-    return """
+    return r"""
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LinkedIn Profile API</title>
+  <title>Ontross — LinkedIn Profile API</title>
+  <meta name="description" content="Paste a LinkedIn profile URL and get structured JSON data for experience, education, skills, and more.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <style>
-    :root {
-      color-scheme: light dark;
-      --bg: #f5f7fb;
-      --panel: #ffffff;
-      --ink: #111827;
-      --muted: #5f6b7a;
-      --line: #d9e0ea;
-      --soft: #eef4fb;
-      --accent: #0a66c2;
-      --accent-dark: #074b8e;
-      --ok: #067647;
-      --danger: #b42318;
-      --code: #101828;
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#090d1a;--surface:#10152a;--glass:rgba(255,255,255,.04);
+      --border:rgba(255,255,255,.08);--border-hover:rgba(255,255,255,.15);
+      --ink:#e8ecf4;--muted:#8896b0;--dim:#5a6a85;
+      --accent:#3b82f6;--accent2:#8b5cf6;
+      --ok:#22c55e;--danger:#ef4444;
+      --grad:linear-gradient(135deg,#3b82f6,#8b5cf6);
+      --glow:0 0 30px rgba(59,130,246,.15);
+      --radius:12px;
     }
-    * { box-sizing: border-box; }
-    html {
-      overflow-x: clip;
+    html{scroll-behavior:smooth;overflow-x:clip}
+    body{
+      font-family:'Inter',system-ui,-apple-system,sans-serif;
+      background:var(--bg);color:var(--ink);
+      min-height:100vh;overflow-x:clip;
+      background-image:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(59,130,246,.12),transparent);
     }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--bg);
-      color: var(--ink);
-      overflow-x: clip;
+
+    /* ── Topbar ── */
+    .topbar{
+      position:sticky;top:0;z-index:10;
+      border-bottom:1px solid var(--border);
+      background:rgba(9,13,26,.85);backdrop-filter:blur(20px);
     }
-    .topbar {
-      border-bottom: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.92);
-      position: sticky;
-      top: 0;
-      z-index: 3;
-      backdrop-filter: blur(14px);
+    .topbar-inner{
+      max-width:1200px;margin:0 auto;padding:0 24px;
+      min-height:64px;display:flex;align-items:center;justify-content:space-between;gap:16px;
     }
-    .topbar-inner {
-      width: min(1180px, calc(100vw - 32px));
-      min-height: 64px;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 18px;
+    .brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:800;letter-spacing:-.01em}
+    .brand-mark{
+      width:34px;height:34px;border-radius:8px;display:grid;place-items:center;
+      background:var(--grad);color:#fff;font-weight:900;font-size:14px;
     }
-    .brand {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 0;
-      font-size: 18px;
-      font-weight: 800;
-      letter-spacing: 0;
+    nav{display:flex;gap:6px;flex-wrap:wrap}
+    nav a{
+      padding:7px 14px;border-radius:8px;font-size:13px;font-weight:700;
+      color:var(--muted);text-decoration:none;
+      border:1px solid transparent;transition:all .2s;
     }
-    .brand-mark {
-      width: 34px;
-      height: 34px;
-      border-radius: 7px;
-      display: grid;
-      place-items: center;
-      color: #ffffff;
-      background: var(--accent);
-      font-weight: 900;
+    nav a:hover{color:var(--ink);background:var(--glass);border-color:var(--border)}
+
+    /* ── Layout ── */
+    .container{max-width:1200px;margin:0 auto;padding:0 24px}
+
+    /* ── Hero ── */
+    .hero{padding:72px 0 40px;display:grid;grid-template-columns:1.3fr .7fr;gap:32px;align-items:center}
+    .hero h1{
+      font-size:54px;font-weight:900;line-height:1.05;letter-spacing:-.03em;
+      background:linear-gradient(135deg,#fff 40%,#8b9dc3);
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+      background-clip:text;
     }
-    nav {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
+    .hero-sub{color:var(--muted);font-size:17px;line-height:1.65;margin-top:16px;max-width:540px}
+    .badges{display:flex;gap:10px;margin-top:24px;flex-wrap:wrap}
+    .badge{
+      display:inline-flex;align-items:center;gap:7px;
+      padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;
+      background:var(--glass);border:1px solid var(--border);color:var(--muted);
+      letter-spacing:.02em;text-transform:uppercase;
     }
-    a {
-      color: var(--accent);
-      text-decoration: none;
-      font-weight: 700;
+    .badge .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);animation:pulse 2s infinite}
+    .badge .dot.blue{background:var(--accent);animation:none}
+    .badge .dot.violet{background:var(--accent2);animation:none}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+    .endpoint-card{
+      background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+      padding:24px;display:flex;flex-direction:column;gap:14px;
     }
-    nav a {
-      min-height: 36px;
-      display: inline-flex;
-      align-items: center;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 0 12px;
-      background: var(--panel);
-      color: var(--ink);
+    .endpoint-label{color:var(--dim);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em}
+    .endpoint-code{
+      font-family:'SF Mono',Consolas,'Liberation Mono',monospace;font-size:13px;
+      background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;
+      padding:14px;color:var(--accent);overflow-wrap:anywhere;line-height:1.5;
     }
-    main {
-      width: min(1180px, calc(100vw - 32px));
-      margin: 0 auto;
-      padding: 28px 0 40px;
+    .endpoint-card a{color:var(--accent);font-size:13px;font-weight:700;text-decoration:none}
+    .endpoint-card a:hover{text-decoration:underline}
+
+    /* ── Founder Radar ── */
+    .section{padding:40px 0}
+    .section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:20px}
+    .eyebrow{
+      font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+      background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+      margin-bottom:6px;
     }
-    .intro {
-      display: grid;
-      grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
-      gap: 22px;
-      align-items: stretch;
-      margin-bottom: 20px;
+    .section-head h2{font-size:28px;font-weight:800;letter-spacing:-.02em}
+
+    .founder-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+    .founder-card{
+      background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+      padding:20px;transition:all .3s ease;
     }
-    .headline {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 14px;
-      padding: 20px 0;
+    .founder-card:hover{border-color:var(--border-hover);box-shadow:var(--glow);transform:translateY(-2px)}
+    .founder-head{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+    .avatar{
+      width:46px;height:46px;border-radius:10px;display:grid;place-items:center;
+      font-weight:900;font-size:15px;color:#fff;flex-shrink:0;
     }
-    h1 {
-      margin: 0;
-      max-width: 760px;
-      font-size: 58px;
-      line-height: 1.02;
-      font-weight: 850;
-      letter-spacing: 0;
+    .avatar.teal{background:linear-gradient(135deg,#0d9488,#14b8a6)}
+    .avatar.violet{background:linear-gradient(135deg,#7c3aed,#a78bfa)}
+    .founder-card h3{font-size:20px;font-weight:800;letter-spacing:-.01em}
+    .role{color:var(--muted);font-size:14px;font-weight:500;line-height:1.4;margin-top:2px}
+    .pill-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+    .pill{
+      padding:5px 10px;border-radius:999px;font-size:11px;font-weight:700;
+      background:var(--glass);border:1px solid var(--border);color:var(--muted);
     }
-    .subhead {
-      margin: 0;
-      max-width: 720px;
-      color: var(--muted);
-      font-size: 17px;
-      line-height: 1.6;
+
+    .expand-btn{
+      display:inline-flex;align-items:center;gap:6px;margin-top:14px;padding:6px 12px;
+      border-radius:8px;font-size:12px;font-weight:700;color:var(--accent);
+      background:transparent;border:1px solid var(--border);cursor:pointer;
+      transition:all .2s;
     }
-    .status-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 8px;
+    .expand-btn:hover{background:var(--glass);border-color:var(--accent)}
+    .expand-btn .arrow{transition:transform .2s;display:inline-block}
+    .expand-btn.open .arrow{transform:rotate(180deg)}
+
+    .founder-details{
+      max-height:0;overflow:hidden;transition:max-height .4s ease;
     }
-    .metric {
-      min-height: 78px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel);
-      padding: 12px;
+    .founder-details.open{max-height:600px}
+
+    .detail-label{
+      color:var(--dim);font-size:11px;font-weight:800;text-transform:uppercase;
+      letter-spacing:.1em;margin:16px 0 8px;
     }
-    .metric strong {
-      display: block;
-      font-size: 22px;
-      line-height: 1.1;
+    .timeline{list-style:none;display:grid;gap:6px}
+    .timeline li{
+      padding-left:12px;border-left:2px solid rgba(59,130,246,.3);
+      color:var(--muted);font-size:13px;line-height:1.5;
     }
-    .metric span {
-      display: block;
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 13px;
-      line-height: 1.35;
+    .timeline strong{color:var(--ink)}
+
+    .founder-actions{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:16px}
+    .btn-scrape{
+      padding:10px 16px;border-radius:8px;border:0;font-weight:800;font-size:13px;
+      background:var(--grad);color:#fff;cursor:pointer;transition:all .2s;
+      font-family:inherit;
     }
-    .endpoint {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--panel);
-      padding: 18px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 12px;
+    .btn-scrape:hover{opacity:.9;box-shadow:0 4px 20px rgba(59,130,246,.3)}
+    .btn-outline{
+      padding:10px 14px;border-radius:8px;font-size:13px;font-weight:700;
+      background:transparent;border:1px solid var(--border);color:var(--muted);
+      text-decoration:none;display:inline-flex;align-items:center;justify-content:center;
+      transition:all .2s;
     }
-    .endpoint-title {
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+    .btn-outline:hover{border-color:var(--border-hover);color:var(--ink)}
+
+    /* ── Workspace ── */
+    .workspace{
+      display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:18px;
+      align-items:start;padding-bottom:60px;
     }
-    code {
-      display: block;
-      min-width: 0;
-      max-width: 100%;
-      overflow-wrap: anywhere;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      background: var(--soft);
-      padding: 12px;
-      color: var(--ink);
-      font: 13px/1.5 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    .panel{
+      background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+      padding:22px;
     }
-    .founder-radar {
-      margin: 10px 0 24px;
+    .panel h2{font-size:18px;font-weight:800;margin-bottom:16px;letter-spacing:-.01em}
+    label{display:block;margin-bottom:8px;color:var(--dim);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+    input[type="url"]{
+      width:100%;padding:12px 14px;border-radius:8px;font-size:14px;
+      border:1px solid var(--border);background:var(--glass);color:var(--ink);
+      font-family:inherit;transition:all .2s;
     }
-    .section-heading {
-      display: flex;
-      align-items: end;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 14px;
+    input[type="url"]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+    .submit-btn{
+      width:100%;padding:14px;margin-top:14px;border:0;border-radius:8px;
+      background:var(--grad);color:#fff;font-family:inherit;font-size:14px;font-weight:800;
+      cursor:pointer;transition:all .25s;position:relative;overflow:hidden;
     }
-    .eyebrow {
-      margin: 0 0 4px;
-      color: var(--accent);
-      font-size: 12px;
-      font-weight: 850;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+    .submit-btn:hover{box-shadow:0 6px 24px rgba(59,130,246,.3);transform:translateY(-1px)}
+    .submit-btn:disabled{opacity:.6;cursor:progress;transform:none}
+    .submit-btn .spinner{
+      display:none;width:18px;height:18px;border:2px solid rgba(255,255,255,.3);
+      border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;
+      margin:0 auto;
     }
-    .section-heading h2 {
-      margin: 0;
-      font-size: 28px;
-      line-height: 1.15;
-      letter-spacing: 0;
+    .submit-btn.loading .label{visibility:hidden}
+    .submit-btn.loading .spinner{display:block;position:absolute;top:50%;left:50%;margin:-9px 0 0 -9px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+    .summary-item{
+      padding:12px;border-radius:8px;background:var(--glass);border:1px solid var(--border);
     }
-    .section-heading p:last-child {
-      margin: 0;
-      max-width: 420px;
-      color: var(--muted);
-      line-height: 1.5;
-      text-align: right;
+    .summary-item span{display:block;color:var(--dim);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+    .summary-item strong{display:block;margin-top:5px;font-size:16px;overflow-wrap:anywhere}
+    .status-msg{margin-top:14px;font-size:13px;color:var(--muted);min-height:20px;overflow-wrap:anywhere}
+    .status-msg.ok{color:var(--ok)}
+    .status-msg.error{color:var(--danger)}
+
+    pre{
+      margin:0;min-height:480px;max-height:calc(100vh - 200px);overflow:auto;
+      padding:18px;border-radius:8px;
+      background:rgba(0,0,0,.4);border:1px solid var(--border);
+      font:13px/1.6 'SF Mono',Consolas,'Liberation Mono',monospace;
+      color:#93c5fd;white-space:pre-wrap;word-break:break-word;
     }
-    .founder-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-      min-width: 0;
+    pre .json-key{color:#60a5fa}
+    pre .json-str{color:#a78bfa}
+    pre .json-num{color:#34d399}
+    pre .json-bool{color:#fb923c}
+    pre .json-null{color:#6b7280}
+
+    /* ── Footer ── */
+    footer{
+      border-top:1px solid var(--border);padding:28px 0;
+      text-align:center;color:var(--dim);font-size:13px;
     }
-    .founder-card {
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--soft);
-      padding: 16px;
-      min-width: 0;
-    }
-    .founder-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      margin-bottom: 12px;
-    }
-    .person {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      min-width: 0;
-    }
-    .person > div:last-child {
-      min-width: 0;
-    }
-    .avatar {
-      width: 44px;
-      height: 44px;
-      border-radius: 8px;
-      display: grid;
-      place-items: center;
-      flex: 0 0 auto;
-      color: #ffffff;
-      background: #0f766e;
-      font-weight: 900;
-    }
-    .avatar.alt { background: #7c3aed; }
-    .founder-card h3 {
-      margin: 0;
-      font-size: 22px;
-      line-height: 1.2;
-      letter-spacing: 0;
-      overflow-wrap: anywhere;
-    }
-    .founder-card h4 {
-      margin: 16px 0 8px;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 850;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-    }
-    .role {
-      margin: 0;
-      color: var(--ink);
-      font-weight: 750;
-      line-height: 1.45;
-      overflow-wrap: anywhere;
-    }
-    .pill-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 12px;
-    }
-    .pill {
-      max-width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: var(--panel);
-      padding: 6px 10px;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 750;
-      line-height: 1.2;
-      overflow-wrap: anywhere;
-    }
-    .timeline {
-      display: grid;
-      gap: 8px;
-      margin: 0;
-      padding: 0;
-      list-style: none;
-    }
-    .timeline li {
-      border-left: 3px solid var(--accent);
-      padding-left: 10px;
-      color: var(--muted);
-      line-height: 1.45;
-      overflow-wrap: anywhere;
-    }
-    .timeline strong {
-      color: var(--ink);
-    }
-    .founder-actions {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 10px;
-      margin-top: 16px;
-    }
-    .target-button {
-      margin: 0;
-      width: auto;
-      min-height: 40px;
-      padding: 0 14px;
-    }
-    .linkedin-link {
-      min-height: 40px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 0 12px;
-      background: var(--panel);
-      color: var(--ink);
-    }
-    .workspace {
-      display: grid;
-      grid-template-columns: minmax(300px, 430px) minmax(0, 1fr);
-      gap: 18px;
-      align-items: start;
-    }
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 18px;
-    }
-    .panel h2 {
-      margin: 0 0 14px;
-      font-size: 18px;
-      line-height: 1.25;
-      letter-spacing: 0;
-    }
-    label {
-      display: block;
-      margin-bottom: 8px;
-      color: var(--muted);
-      font-size: 13px;
-      font-weight: 800;
-    }
-    input {
-      width: 100%;
-      min-height: 46px;
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      padding: 10px 12px;
-      font: inherit;
-      color: var(--ink);
-      background: transparent;
-    }
-    input:focus {
-      outline: 3px solid rgba(10, 102, 194, 0.18);
-      border-color: var(--accent);
-    }
-    button {
-      width: 100%;
-      min-height: 46px;
-      margin-top: 12px;
-      border: 0;
-      border-radius: 6px;
-      background: var(--accent);
-      color: white;
-      font: inherit;
-      font-weight: 800;
-      cursor: pointer;
-    }
-    button:hover { background: var(--accent-dark); }
-    button:disabled {
-      cursor: progress;
-      opacity: 0.72;
-    }
-    .summary {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-      margin-top: 14px;
-    }
-    .summary-item {
-      min-height: 70px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 12px;
-      background: var(--soft);
-    }
-    .summary-item span {
-      display: block;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 800;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-    .summary-item strong {
-      display: block;
-      margin-top: 6px;
-      overflow-wrap: anywhere;
-      font-size: 17px;
-      line-height: 1.3;
-    }
-    .status {
-      min-height: 22px;
-      margin-top: 12px;
-      color: var(--muted);
-      font-size: 14px;
-      overflow-wrap: anywhere;
-    }
-    .status.ok { color: var(--ok); }
-    .status.error { color: var(--danger); }
-    pre {
-      min-width: 0;
-      min-height: 520px;
-      max-height: calc(100vh - 190px);
-      margin: 0;
-      overflow: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
-      color: #dbeafe;
-      background: var(--code);
-      border-radius: 6px;
-      padding: 16px;
-      font: 13px/1.55 ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #0b1018;
-        --panel: #111827;
-        --ink: #eef4ff;
-        --muted: #a7b2c3;
-        --line: #283345;
-        --soft: #182233;
-        --code: #05070b;
-      }
-      .topbar { background: rgba(17, 24, 39, 0.9); }
-    }
-    @media (max-width: 840px) {
-      .topbar-inner, main {
-        width: calc(100vw - 24px);
-        max-width: 720px;
-      }
-      .topbar-inner {
-        min-height: auto;
-        padding: 12px 0;
-        align-items: flex-start;
-        flex-direction: column;
-      }
-      nav {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        width: 100%;
-        justify-content: stretch;
-      }
-      nav a {
-        min-width: 0;
-        justify-content: center;
-        padding: 0 8px;
-        text-align: center;
-      }
-      .intro, .workspace { grid-template-columns: 1fr; }
-      .intro, .endpoint, .workspace, .panel, .founder-radar, .founder-card {
-        width: 100%;
-        max-width: 100%;
-      }
-      .headline { min-width: 0; }
-      .section-heading {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-      .section-heading p:last-child { text-align: left; }
-      .founder-grid { grid-template-columns: 1fr; }
-      .founder-actions { grid-template-columns: 1fr; }
-      .target-button { width: 100%; }
-      .status-grid { grid-template-columns: 1fr; }
-      .summary { grid-template-columns: 1fr; }
-      h1 {
-        width: 100%;
-        max-width: 100%;
-        font-size: 34px;
-        overflow-wrap: break-word;
-      }
-      .subhead { max-width: 100%; }
-      code { word-break: break-all; }
-      pre { min-height: 340px; max-height: none; }
+    footer a{color:var(--muted);text-decoration:none;font-weight:600}
+    footer a:hover{color:var(--ink)}
+
+    /* ── Fade-in animation ── */
+    .fade-up{opacity:0;transform:translateY(20px);transition:opacity .6s ease,transform .6s ease}
+    .fade-up.visible{opacity:1;transform:translateY(0)}
+
+    /* ── Responsive ── */
+    @media(max-width:860px){
+      .hero{grid-template-columns:1fr;padding:48px 0 28px}
+      .hero h1{font-size:36px}
+      .founder-grid{grid-template-columns:1fr}
+      .workspace{grid-template-columns:1fr}
+      .section-head{flex-direction:column;align-items:flex-start}
+      .topbar-inner{flex-direction:column;align-items:flex-start;padding:14px 24px;gap:10px}
+      nav{width:100%;display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+      nav a{text-align:center;justify-content:center}
+      pre{min-height:320px;max-height:none}
     }
   </style>
 </head>
 <body>
   <div class="topbar">
     <div class="topbar-inner">
-      <div class="brand" aria-label="LinkedIn Profile API">
-        <span class="brand-mark">in</span>
-        <span>LinkedIn Profile API</span>
-      </div>
-      <nav aria-label="Primary">
+      <div class="brand"><span class="brand-mark">in</span><span>Ontross</span></div>
+      <nav>
         <a href="/docs">Docs</a>
         <a href="#founders">Founder Radar</a>
         <a href="/health">Health</a>
@@ -542,35 +282,26 @@ def home_page_html() -> str:
     </div>
   </div>
 
-  <main>
-    <section class="intro" aria-labelledby="page-title">
-      <div class="headline">
-        <h1 id="page-title">LinkedIn profile data, returned as JSON.</h1>
-        <p class="subhead">Paste a LinkedIn profile URL and get structured profile, experience, education, and extraction metadata from the deployed API.</p>
-        <div class="status-grid" aria-label="Deployment status">
-          <div class="metric">
-            <strong>Live</strong>
-            <span>Production deployment</span>
-          </div>
-          <div class="metric">
-            <strong>HTTPS</strong>
-            <span>Public API endpoint</span>
-          </div>
-          <div class="metric">
-            <strong>JSON</strong>
-            <span>Assignment-ready output</span>
-          </div>
+  <main class="container">
+    <section class="hero fade-up">
+      <div>
+        <h1>LinkedIn profile data, returned as JSON.</h1>
+        <p class="hero-sub">Paste a LinkedIn profile URL and get structured profile, experience, education, and extraction metadata from the deployed API.</p>
+        <div class="badges">
+          <span class="badge"><span class="dot"></span> Live</span>
+          <span class="badge"><span class="dot blue"></span> HTTPS</span>
+          <span class="badge"><span class="dot violet"></span> JSON Output</span>
         </div>
       </div>
-      <aside class="endpoint" aria-label="Endpoint">
-        <div class="endpoint-title">GET endpoint</div>
-        <code>/api/profile?url=https://www.linkedin.com/in/example/</code>
-        <a href="/openapi.json">OpenAPI schema</a>
+      <aside class="endpoint-card">
+        <div class="endpoint-label">GET Endpoint</div>
+        <div class="endpoint-code">/api/profile?url=https://www.linkedin.com/in/example/</div>
+        <a href="/openapi.json">OpenAPI schema &rarr;</a>
       </aside>
     </section>
 
-    <section class="founder-radar" id="founders" aria-labelledby="founder-title">
-      <div class="section-heading">
+    <section class="section fade-up" id="founders" aria-labelledby="founder-title">
+      <div class="section-head">
         <div>
           <p class="eyebrow">Founder Radar</p>
           <h2 id="founder-title">Likely reviewers, preloaded.</h2>
@@ -580,187 +311,173 @@ def home_page_html() -> str:
       <div class="founder-grid">
         <article class="founder-card">
           <div class="founder-head">
-            <div class="person">
-              <div class="avatar" aria-hidden="true">MS</div>
-              <div>
-                <h3>Meet Shah</h3>
-                <p class="role">Co-Founder and CTO at Tross (Previously Ayden)</p>
-              </div>
+            <div class="avatar teal">MS</div>
+            <div>
+              <h3>Meet Shah</h3>
+              <p class="role">Co-Founder and CTO at Tross (Previously Ayden)</p>
             </div>
           </div>
           <div class="pill-row">
-            <span class="pill">San Francisco, California, United States</span>
+            <span class="pill">San Francisco, CA</span>
             <span class="pill">IIT Roorkee</span>
-            <span class="pill">Backend, security, infra</span>
+            <span class="pill">Backend &middot; Security &middot; Infra</span>
           </div>
-
-          <h4>Experience</h4>
-          <ul class="timeline">
-            <li><strong>Tross</strong> - Co-Founder and CTO, Jun 2025 to Present.</li>
-            <li><strong>BharatX</strong> - Founding Engineer across backend, risk underwriting, and infra; acquired by Flipkart.</li>
-            <li><strong>Entrepreneur First</strong> - Entrepreneur in Residence, Jul 2023 to Dec 2023.</li>
-            <li><strong>Shape</strong> - Founding Software Engineer on a natural language database engine, Jan 2023 to Jun 2023.</li>
-            <li><strong>Microsoft</strong> - Software/Security Engineering Intern building phishing detection, May 2022 to Jul 2022.</li>
-            <li><strong>Hevo Data</strong> - Software Engineering Intern on internal monitoring, Nov 2021 to Apr 2022.</li>
-            <li><strong>GSoC and open source</strong> - Terasology Foundation and SDSLabs work across 2020 to 2021.</li>
-          </ul>
-
-          <h4>Education</h4>
-          <ul class="timeline">
-            <li><strong>Indian Institute of Technology, Roorkee</strong> - BTech, Computer Science, 2019 to 2023.</li>
-          </ul>
-
+          <button class="expand-btn" type="button" onclick="toggleDetails(this)"><span class="arrow">&#9660;</span> Details</button>
+          <div class="founder-details">
+            <p class="detail-label">Experience</p>
+            <ul class="timeline">
+              <li><strong>Tross</strong> — Co-Founder and CTO, Jun 2025 to Present.</li>
+              <li><strong>BharatX</strong> — Founding Engineer; acquired by Flipkart.</li>
+              <li><strong>Entrepreneur First</strong> — EIR, Jul–Dec 2023.</li>
+              <li><strong>Shape</strong> — Founding SWE, Jan–Jun 2023.</li>
+              <li><strong>Microsoft</strong> — Security Intern, May–Jul 2022.</li>
+              <li><strong>Hevo Data</strong> — SWE Intern, Nov 2021–Apr 2022.</li>
+              <li><strong>GSoC / Open Source</strong> — 2020–2021.</li>
+            </ul>
+            <p class="detail-label">Education</p>
+            <ul class="timeline">
+              <li><strong>IIT Roorkee</strong> — BTech CS, 2019–2023.</li>
+            </ul>
+          </div>
           <div class="founder-actions">
-            <button class="target-button" type="button" data-profile-url="https://www.linkedin.com/in/meetcshah19/">Scrape Meet</button>
-            <a class="linkedin-link" href="https://www.linkedin.com/in/meetcshah19/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+            <button class="btn-scrape" type="button" data-profile-url="https://www.linkedin.com/in/meetcshah19/">Scrape Meet</button>
+            <a class="btn-outline" href="https://www.linkedin.com/in/meetcshah19/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
           </div>
         </article>
 
         <article class="founder-card">
           <div class="founder-head">
-            <div class="person">
-              <div class="avatar alt" aria-hidden="true">PK</div>
-              <div>
-                <h3>Padam Kataria</h3>
-                <p class="role">Co-Founder at Tross (Previously Ayden)</p>
-              </div>
+            <div class="avatar violet">PK</div>
+            <div>
+              <h3>Padam Kataria</h3>
+              <p class="role">Co-Founder at Tross (Previously Ayden)</p>
             </div>
           </div>
           <div class="pill-row">
             <span class="pill">San Francisco Bay Area</span>
             <span class="pill">BITS Pilani</span>
-            <span class="pill">Product, fintech, GTM</span>
+            <span class="pill">Product &middot; Fintech &middot; GTM</span>
           </div>
-
-          <h4>Experience</h4>
-          <ul class="timeline">
-            <li><strong>Tross</strong> - Co-Founder, Dec 2025 to Present.</li>
-            <li><strong>Career break</strong> - Personal goal pursuit, running, cycling, AI tools, and travel, Feb 2025 to Jun 2025.</li>
-            <li><strong>BharatX</strong> - Business Head, May 2024 to Feb 2025; acquired by Super.money / Flipkart.</li>
-            <li><strong>Zenifi</strong> - Healthcare fintech, Apr 2023 to May 2024; acquired by BharatX.</li>
-            <li><strong>Navi</strong> - Product work on personal loans, mandates, KYC, and account aggregator flows, Jan 2022 to Apr 2023.</li>
-            <li><strong>Hallparty</strong> - Founding Member across recruiting, product, and user research, Sep 2020 to Feb 2021.</li>
-            <li><strong>Sprinklr</strong> - Product work in customer experience management, 2021.</li>
-          </ul>
-
-          <h4>Education</h4>
-          <ul class="timeline">
-            <li><strong>BITS Pilani</strong> - B.E. (Hons.), Electronics and Instrumentation, 2018 to 2022.</li>
-            <li><strong>DPS R.K. Puram</strong> - Physics, Chemistry, and Mathematics.</li>
-          </ul>
-
+          <button class="expand-btn" type="button" onclick="toggleDetails(this)"><span class="arrow">&#9660;</span> Details</button>
+          <div class="founder-details">
+            <p class="detail-label">Experience</p>
+            <ul class="timeline">
+              <li><strong>Tross</strong> — Co-Founder, Dec 2025 to Present.</li>
+              <li><strong>Career break</strong> — Feb–Jun 2025.</li>
+              <li><strong>BharatX</strong> — Business Head, May 2024–Feb 2025; acquired by Super.money / Flipkart.</li>
+              <li><strong>Zenifi</strong> — Healthcare fintech, Apr 2023–May 2024; acquired by BharatX.</li>
+              <li><strong>Navi</strong> — Product, personal loans &amp; KYC, Jan 2022–Apr 2023.</li>
+              <li><strong>Hallparty</strong> — Founding Member, Sep 2020–Feb 2021.</li>
+              <li><strong>Sprinklr</strong> — CX product work, 2021.</li>
+            </ul>
+            <p class="detail-label">Education</p>
+            <ul class="timeline">
+              <li><strong>BITS Pilani</strong> — B.E. (Hons.), Electronics, 2018–2022.</li>
+              <li><strong>DPS R.K. Puram</strong> — PCM.</li>
+            </ul>
+          </div>
           <div class="founder-actions">
-            <button class="target-button" type="button" data-profile-url="https://www.linkedin.com/in/padamkataria/">Scrape Padam</button>
-            <a class="linkedin-link" href="https://www.linkedin.com/in/padamkataria/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
+            <button class="btn-scrape" type="button" data-profile-url="https://www.linkedin.com/in/padamkataria/">Scrape Padam</button>
+            <a class="btn-outline" href="https://www.linkedin.com/in/padamkataria/" target="_blank" rel="noopener noreferrer">LinkedIn</a>
           </div>
         </article>
       </div>
     </section>
 
-    <div class="workspace">
-      <section class="panel" aria-labelledby="scrape-title">
-        <h2 id="scrape-title">Profile Lookup</h2>
+    <section class="workspace fade-up" id="workspace">
+      <div class="panel">
+        <h2>Profile Lookup</h2>
         <form id="scrape-form">
           <label for="profile-url">Profile URL</label>
-          <input
-            id="profile-url"
-            name="profile-url"
-            type="url"
-            value="https://www.linkedin.com/in/chirag-kakwani-8b4055284/"
-            autocomplete="url"
-            required
-          >
-          <button id="submit-button" type="submit">Scrape Profile</button>
-          <div id="status" class="status"></div>
+          <input id="profile-url" name="profile-url" type="url"
+            value="https://www.linkedin.com/in/chirag-kakwani-8b4055284/" autocomplete="url" required>
+          <button id="submit-button" class="submit-btn" type="submit">
+            <span class="label">Scrape Profile</span>
+            <span class="spinner"></span>
+          </button>
+          <div id="status" class="status-msg"></div>
         </form>
-        <div class="summary" aria-label="Result summary">
-          <div class="summary-item">
-            <span>Name</span>
-            <strong id="summary-name">-</strong>
-          </div>
-          <div class="summary-item">
-            <span>Location</span>
-            <strong id="summary-location">-</strong>
-          </div>
-          <div class="summary-item">
-            <span>Experience</span>
-            <strong id="summary-experience">-</strong>
-          </div>
-          <div class="summary-item">
-            <span>Education</span>
-            <strong id="summary-education">-</strong>
-          </div>
+        <div class="summary">
+          <div class="summary-item"><span>Name</span><strong id="summary-name">—</strong></div>
+          <div class="summary-item"><span>Location</span><strong id="summary-location">—</strong></div>
+          <div class="summary-item"><span>Experience</span><strong id="summary-experience">—</strong></div>
+          <div class="summary-item"><span>Education</span><strong id="summary-education">—</strong></div>
         </div>
-      </section>
-
-      <section class="panel" aria-labelledby="response-title">
-        <h2 id="response-title">Response Body</h2>
+      </div>
+      <div class="panel">
+        <h2>Response Body</h2>
         <pre id="output">{}</pre>
-      </section>
-    </div>
+      </div>
+    </section>
   </main>
 
-  <script>
-    const form = document.querySelector("#scrape-form");
-    const input = document.querySelector("#profile-url");
-    const output = document.querySelector("#output");
-    const status = document.querySelector("#status");
-    const button = document.querySelector("#submit-button");
-    const summaryName = document.querySelector("#summary-name");
-    const summaryLocation = document.querySelector("#summary-location");
-    const summaryExperience = document.querySelector("#summary-experience");
-    const summaryEducation = document.querySelector("#summary-education");
+  <footer>
+    <div class="container">
+      Built for the Tross hiring challenge &middot;
+      <a href="https://github.com/onlychirag/linkedin-profile-api" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </div>
+  </footer>
 
-    function setSummary(payload) {
-      summaryName.textContent = payload?.name || "-";
-      summaryLocation.textContent = payload?.location || "-";
-      summaryExperience.textContent = Array.isArray(payload?.experience)
-        ? String(payload.experience.length)
-        : "-";
-      summaryEducation.textContent = Array.isArray(payload?.education)
-        ? String(payload.education.length)
-        : "-";
+  <script>
+    /* ── Collapse / expand founder details ── */
+    function toggleDetails(btn){
+      const details=btn.nextElementSibling;
+      details.classList.toggle('open');
+      btn.classList.toggle('open');
     }
 
-    document.querySelectorAll("[data-profile-url]").forEach((targetButton) => {
-      targetButton.addEventListener("click", () => {
-        input.value = targetButton.dataset.profileUrl;
-        form.requestSubmit();
-      });
+    /* ── Syntax-highlighted JSON ── */
+    function highlightJSON(json){
+      var h=json.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      return h.replace(/"([^"]*)"\s*:/g,function(m,k){return '<span class="json-key">"'+k+'"</span>:'})
+              .replace(/:\s*"([^"]*)"/g,function(m,v){return ': <span class="json-str">"'+v+'"</span>'})
+              .replace(/:\s*(true|false)/g,function(m,v){return ': <span class="json-bool">'+v+'</span>'})
+              .replace(/:\s*null/g,': <span class="json-null">null</span>')
+              .replace(/:\s*(-?[0-9.]+)/g,function(m,v){return ': <span class="json-num">'+v+'</span>'});
+    }
+
+    /* ── Fade-in on scroll ── */
+    const observer=new IntersectionObserver(entries=>{
+      entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target)}})
+    },{threshold:.15});
+    document.querySelectorAll('.fade-up').forEach(el=>observer.observe(el));
+
+    /* ── Scraper form ── */
+    const form=document.querySelector('#scrape-form');
+    const input=document.querySelector('#profile-url');
+    const output=document.querySelector('#output');
+    const statusEl=document.querySelector('#status');
+    const button=document.querySelector('#submit-button');
+    const sName=document.querySelector('#summary-name');
+    const sLoc=document.querySelector('#summary-location');
+    const sExp=document.querySelector('#summary-experience');
+    const sEdu=document.querySelector('#summary-education');
+
+    function setSummary(p){
+      sName.textContent=p?.name||'—';
+      sLoc.textContent=p?.location||'—';
+      sExp.textContent=Array.isArray(p?.experience)?String(p.experience.length):'—';
+      sEdu.textContent=Array.isArray(p?.education)?String(p.education.length):'—';
+    }
+
+    document.querySelectorAll('[data-profile-url]').forEach(b=>{
+      b.addEventListener('click',()=>{input.value=b.dataset.profileUrl;form.requestSubmit()});
     });
 
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      status.className = "status";
-      status.textContent = "Running scrape...";
-      button.disabled = true;
-      output.textContent = "{}";
-      setSummary(null);
-
-      try {
-        const response = await fetch(`/api/profile?url=${encodeURIComponent(input.value)}`);
-        const text = await response.text();
-        let payload;
-        try {
-          payload = JSON.parse(text);
-          output.textContent = JSON.stringify(payload, null, 2);
-          if (response.ok) {
-            setSummary(payload);
-          }
-        } catch {
-          output.textContent = text || "{}";
-        }
-        if (!response.ok) {
-          throw new Error(payload?.detail || `Request failed with ${response.status}`);
-        }
-        status.className = "status ok";
-        status.textContent = "Done";
-      } catch (error) {
-        status.className = "status error";
-        status.textContent = error.message;
-      } finally {
-        button.disabled = false;
-      }
+    form.addEventListener('submit',async e=>{
+      e.preventDefault();
+      statusEl.className='status-msg';statusEl.textContent='Running scrape…';
+      button.disabled=true;button.classList.add('loading');
+      output.textContent='{}';setSummary(null);
+      try{
+        const r=await fetch('/api/profile?url='+encodeURIComponent(input.value));
+        const t=await r.text();let p;
+        try{p=JSON.parse(t);output.innerHTML=highlightJSON(JSON.stringify(p,null,2));if(r.ok)setSummary(p)}
+        catch{output.textContent=t||'{}'}
+        if(!r.ok)throw new Error(p?.detail||'Request failed with '+r.status);
+        statusEl.className='status-msg ok';statusEl.textContent='Done';
+      }catch(err){statusEl.className='status-msg error';statusEl.textContent=err.message}
+      finally{button.disabled=false;button.classList.remove('loading')}
     });
   </script>
 </body>
