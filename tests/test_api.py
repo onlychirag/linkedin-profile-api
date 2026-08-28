@@ -28,6 +28,15 @@ def test_health_endpoint() -> None:
     assert response.json()["status"] == "ok"
 
 
+def test_root_endpoint_serves_main_page() -> None:
+    client = TestClient(app)
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert "LinkedIn profile data" in response.text
+    assert "Profile Lookup" in response.text
+
+
 def test_ui_endpoint_serves_form() -> None:
     client = TestClient(app)
     response = client.get("/ui")
