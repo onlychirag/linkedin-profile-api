@@ -28,6 +28,15 @@ def test_health_endpoint() -> None:
     assert response.json()["status"] == "ok"
 
 
+def test_ui_endpoint_serves_form() -> None:
+    client = TestClient(app)
+    response = client.get("/ui")
+
+    assert response.status_code == 200
+    assert "LinkedIn profile URL" in response.text
+    assert "/api/profile" in response.text
+
+
 def test_profile_endpoint_uses_scraper_dependency() -> None:
     app.dependency_overrides[get_scraper] = lambda: FakeScraper()
     client = TestClient(app)
