@@ -304,7 +304,7 @@ def home_page_html() -> str:
       <div class="section-head">
         <div>
           <p class="eyebrow">Founder Radar</p>
-          <h2 id="founder-title">Likely reviewers, preloaded.</h2>
+          <h2 id="founder-title">The Hit List.</h2>
         </div>
       </div>
 
