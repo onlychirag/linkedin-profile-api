@@ -8,15 +8,11 @@
     "BROWSER_BACKEND": "playwright",
     "REQUEST_TIMEOUT_MS": "60000"
   },
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "api/index.py"
-    }
-  ],
   "services": {
     "linkedin-profile-api": {
-      "root": "."
+      "root": ".",
+      "runtime": "python",
+      "entrypoint": "api/index.py"
     }
   },
   "rewrites": [
