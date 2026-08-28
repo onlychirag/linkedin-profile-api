@@ -125,16 +125,22 @@ Save the output to:
 LINKEDIN_STORAGE_STATE_B64=...
 ```
 
-## Deploy over HTTPS
+## Recommended hosting
 
-The repo includes a `Dockerfile` and `render.yaml`.
+Use Render for this challenge deployment. The scraper needs a Docker runtime,
+Chromium, longer request handling than a typical serverless function, and a
+durable place for the LinkedIn browser session. Vercel is a good frontend host,
+but the browser-backed scraper is a poor fit for Vercel Functions.
+
+The repo includes a `Dockerfile` and `render.yaml` for Render.
 
 Render steps:
 
 1. Push this repository to GitHub.
 2. Create a new Render Blueprint from the repository.
-3. Set `API_KEY`, `LINKEDIN_EMAIL`, and `LINKEDIN_PASSWORD` as secrets, or set `LINKEDIN_STORAGE_STATE_B64`.
-4. Deploy. Render provides the public HTTPS URL.
+3. Use the included paid `1c-2g` web service with the `linkedin-auth` persistent disk.
+4. Set `API_KEY`, `LINKEDIN_EMAIL`, and `LINKEDIN_PASSWORD` as secrets, or set `LINKEDIN_STORAGE_STATE_B64`.
+5. Deploy. Render provides the public HTTPS URL.
 
 Any Docker host works too:
 

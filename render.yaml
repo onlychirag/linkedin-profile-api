@@ -1,9 +1,14 @@
 services:
   - type: web
     name: linkedin-profile-api
-    env: docker
-    plan: starter
+    runtime: docker
+    plan: 1c-2g
+    region: singapore
     healthCheckPath: /health
+    disk:
+      name: linkedin-auth
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: ENABLE_BROWSER_SCRAPER
         value: "true"
@@ -17,6 +22,10 @@ services:
         value: "true"
       - key: DRISSION_BROWSER_PATH
         value: "/usr/bin/chromium"
+      - key: LINKEDIN_USER_DATA_DIR
+        value: "/var/data/linkedin-browser-profile"
+      - key: LINKEDIN_STORAGE_STATE_PATH
+        value: "/var/data/linkedin-state.json"
       - key: REQUEST_TIMEOUT_MS
         value: "45000"
       - key: API_KEY
