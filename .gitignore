@@ -2,6 +2,7 @@
 .env.*
 !.env.example
 .auth/
+.vercel/
 .venv/
 __pycache__/
 *.py[cod]
