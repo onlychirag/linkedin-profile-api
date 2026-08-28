@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: linkedin-profile-api
+    env: docker
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: ENABLE_BROWSER_SCRAPER
+        value: "true"
+      - key: ENABLE_DRISSION_SCRAPER
+        value: "true"
+      - key: BROWSER_BACKEND
+        value: "auto"
+      - key: PLAYWRIGHT_HEADLESS
+        value: "true"
+      - key: DRISSION_HEADLESS
+        value: "true"
+      - key: DRISSION_BROWSER_PATH
+        value: "/usr/bin/chromium"
+      - key: REQUEST_TIMEOUT_MS
+        value: "45000"
+      - key: API_KEY
+        sync: false
+      - key: LINKEDIN_EMAIL
+        sync: false
+      - key: LINKEDIN_PASSWORD
+        sync: false
+      - key: LINKEDIN_STORAGE_STATE_B64
+        sync: false
