@@ -221,94 +221,105 @@ class LinkedInScraper:
                 "Playwright is not installed. Run `pip install -r requirements.txt`."
             ) from exc
 
-        async with async_playwright() as playwright:
-            browser = None
-            context = None
-            use_persistent_profile = has_persistent_user_data_dir(self.settings)
-            try:
-                if use_persistent_profile:
-                    context = await playwright.chromium.launch_persistent_context(
-                        user_data_dir=str(self.settings.linkedin_user_data_dir),
-                        headless=self.settings.playwright_headless,
-                        args=["--no-sandbox", "--disable-dev-shm-usage"],
-                        viewport={"width": 1365, "height": 900},
-                        locale="en-US",
-                    )
-                    if self.settings.browser_user_agent:
-                        await context.set_extra_http_headers(
-                            {"User-Agent": self.settings.browser_user_agent}
+        # Try headless first; if auth wall is hit, retry headed so user can intervene
+        for attempt_headless in (True, False):
+            async with async_playwright() as playwright:
+                browser = None
+                context = None
+                use_persistent_profile = has_persistent_user_data_dir(self.settings)
+                try:
+                    if use_persistent_profile:
+                        context = await playwright.chromium.launch_persistent_context(
+                            user_data_dir=str(self.settings.linkedin_user_data_dir),
+                            headless=attempt_headless,
+                            args=["--no-sandbox", "--disable-dev-shm-usage"],
+                            viewport={"width": 1365, "height": 900},
+                            locale="en-US",
                         )
-                else:
-                    browser = await playwright.chromium.launch(
-                        headless=self.settings.playwright_headless,
-                        args=["--no-sandbox", "--disable-dev-shm-usage"],
-                    )
-                    context_args: dict[str, Any] = {
-                        "viewport": {"width": 1365, "height": 900},
-                        "locale": "en-US",
-                    }
-                    if self.settings.browser_user_agent:
-                        context_args["user_agent"] = self.settings.browser_user_agent
-                    storage_state = load_storage_state(self.settings)
-                    if storage_state:
-                        context_args["storage_state"] = storage_state
-                    context = await browser.new_context(**context_args)
-            except Exception as exc:
-                raise BrowserUnavailable(
-                    "Chromium could not launch. Run `python -m playwright install chromium`."
-                ) from exc
-            try:
-                page = context.pages[0] if context.pages else await context.new_page()
-                authenticated = await self._ensure_authenticated(context, page)
-                await self._goto(page, url, PlaywrightTimeoutError)
-                if self._is_auth_wall(page.url):
-                    if not authenticated:
-                        raise AuthenticationRequired(
-                            "LinkedIn requires authentication. Set LINKEDIN_EMAIL/LINKEDIN_PASSWORD "
-                            "or create a Playwright storage state with scripts/create_linkedin_session.py."
+                        if self.settings.browser_user_agent:
+                            await context.set_extra_http_headers(
+                                {"User-Agent": self.settings.browser_user_agent}
+                            )
+                    else:
+                        browser = await playwright.chromium.launch(
+                            headless=attempt_headless,
+                            args=["--no-sandbox", "--disable-dev-shm-usage"],
                         )
-                    raise AuthenticationRequired(
-                        "LinkedIn sent the session to a login or checkpoint page."
-                    )
-
-                await self._expand_visible_sections(page)
-                html = await page.content()
-                profile = parse_profile_html(html, url, resolved_url=page.url)
-                profile.extraction.authenticated = authenticated
-                profile.extraction.strategies.append("playwright-profile-page")
-                if use_persistent_profile:
-                    profile.extraction.strategies.append("persistent-browser-profile")
-
-                for section in DETAIL_SECTIONS:
-                    detail_url = f"{url.rstrip('/')}/details/{section}/"
-                    await self._goto(page, detail_url, PlaywrightTimeoutError)
+                        context_args: dict[str, Any] = {
+                            "viewport": {"width": 1365, "height": 900},
+                            "locale": "en-US",
+                        }
+                        if self.settings.browser_user_agent:
+                            context_args["user_agent"] = self.settings.browser_user_agent
+                        storage_state = load_storage_state(self.settings)
+                        if storage_state:
+                            context_args["storage_state"] = storage_state
+                        context = await browser.new_context(**context_args)
+                except Exception as exc:
+                    raise BrowserUnavailable(
+                        "Chromium could not launch. Run `python -m playwright install chromium`."
+                    ) from exc
+                try:
+                    page = context.pages[0] if context.pages else await context.new_page()
+                    authenticated = await self._ensure_authenticated(context, page)
+                    await self._goto(page, url, PlaywrightTimeoutError)
                     if self._is_auth_wall(page.url):
-                        profile.extraction.warnings.append(
-                            f"Skipped {section}; LinkedIn redirected to authentication."
+                        if attempt_headless:
+                            # Close everything and retry with a visible browser
+                            logger.info("Auth wall hit in headless mode; retrying headed...")
+                            continue
+                        if not authenticated:
+                            raise AuthenticationRequired(
+                                "LinkedIn requires authentication. Set LINKEDIN_EMAIL/LINKEDIN_PASSWORD "
+                                "or create a Playwright storage state with scripts/create_linkedin_session.py."
+                            )
+                        raise AuthenticationRequired(
+                            "LinkedIn sent the session to a login or checkpoint page."
                         )
-                        continue
-                    if f"/details/{section}" not in page.url:
-                        profile.extraction.warnings.append(
-                            f"Skipped {section}; LinkedIn did not serve the detail page."
-                        )
-                        continue
-                    await self._expand_visible_sections(page)
-                    detail_html = await page.content()
-                    items = parse_detail_section_html(detail_html, section)
-                    if items:
-                        setattr(profile, section, items)
-                        profile.raw_sections[section] = [
-                            getattr(item, "source_text", []) for item in items
-                        ]
-                        profile.extraction.strategies.append(f"playwright-{section}")
 
-                await save_storage_state(context, self.settings)
-                return profile
-            finally:
-                if context:
-                    await context.close()
-                if browser:
-                    await browser.close()
+                    await self._expand_visible_sections(page)
+                    html = await page.content()
+                    profile = parse_profile_html(html, url, resolved_url=page.url)
+                    profile.extraction.authenticated = authenticated
+                    profile.extraction.strategies.append("playwright-profile-page")
+                    if use_persistent_profile:
+                        profile.extraction.strategies.append("persistent-browser-profile")
+                    if not attempt_headless:
+                        profile.extraction.strategies.append("headed-fallback")
+
+                    for section in DETAIL_SECTIONS:
+                        detail_url = f"{url.rstrip('/')}/details/{section}/"
+                        await self._goto(page, detail_url, PlaywrightTimeoutError)
+                        if self._is_auth_wall(page.url):
+                            profile.extraction.warnings.append(
+                                f"Skipped {section}; LinkedIn redirected to authentication."
+                            )
+                            continue
+                        if f"/details/{section}" not in page.url:
+                            profile.extraction.warnings.append(
+                                f"Skipped {section}; LinkedIn did not serve the detail page."
+                            )
+                            continue
+                        await self._expand_visible_sections(page)
+                        detail_html = await page.content()
+                        items = parse_detail_section_html(detail_html, section)
+                        if items:
+                            setattr(profile, section, items)
+                            profile.raw_sections[section] = [
+                                getattr(item, "source_text", []) for item in items
+                            ]
+                            profile.extraction.strategies.append(f"playwright-{section}")
+
+                    await save_storage_state(context, self.settings)
+                    return profile
+                finally:
+                    if context:
+                        await context.close()
+                    if browser:
+                        await browser.close()
+
+        # Should never reach here, but just in case
+        raise AuthenticationRequired("LinkedIn authentication failed after all attempts.")
 
     async def _ensure_authenticated(self, context: Any, page: Any | None = None) -> bool:
         has_credentials = bool(self.settings.linkedin_email and self.settings.linkedin_password)

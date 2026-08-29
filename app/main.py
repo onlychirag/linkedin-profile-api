@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import asyncio
+import sys
+
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 from functools import lru_cache
 from typing import Any
 from urllib.parse import urlparse
@@ -855,6 +861,47 @@ def create_app() -> FastAPI:
                 params={"url": url},
             )
         return await _scrape(url, scraper)
+
+    class SessionUpdate(BaseModel):
+        storage_state_b64: str = Field(..., description="Base64-encoded Playwright storage state JSON")
+
+    @app.post("/api/auth/session")
+    async def update_session(
+        payload: SessionUpdate,
+        _: None = Depends(require_api_key),
+    ) -> dict[str, str]:
+        """Hot-swap the LinkedIn session cookie at runtime (no redeploy needed)."""
+        import base64 as _b64
+        import json as _json
+
+        # Validate the payload is valid base64 JSON
+        try:
+            decoded = _b64.b64decode(payload.storage_state_b64).decode("utf-8")
+            state = _json.loads(decoded)
+            if "cookies" not in state:
+                raise ValueError("Missing 'cookies' key")
+        except Exception as exc:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid storage state: {exc}",
+            ) from exc
+
+        # Hot-swap in Settings (bypass frozen dataclass)
+        object.__setattr__(settings, "linkedin_storage_state_b64", payload.storage_state_b64)
+
+        # Also persist to the state file so it survives restarts
+        state_path = settings.linkedin_storage_state_path
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(decoded, encoding="utf-8")
+
+        # Clear the scraper cache so next request uses the new session
+        get_scraper.cache_clear()
+
+        cookie_count = len(state.get("cookies", []))
+        return {
+            "status": "ok",
+            "message": f"Session updated with {cookie_count} cookies. Next scrape will use the new session.",
+        }
 
     return app
 
