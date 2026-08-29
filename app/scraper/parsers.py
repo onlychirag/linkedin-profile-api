@@ -145,7 +145,7 @@ def parse_profile_html(html: str, requested_url: str, resolved_url: str | None =
         _best_location_line(soup),
     )
     about = _extract_about(soup)
-    images = _extract_images(soup, person, meta)
+    images = _extract_images(soup, person, meta, name)
 
     strategies = ["public-metadata"] if (person or meta) else ["html-dom"]
     return LinkedInProfile(
@@ -830,7 +830,10 @@ def _extract_about(soup: BeautifulSoup) -> str | None:
 
 
 def _extract_images(
-    soup: BeautifulSoup, person: dict[str, Any], meta: dict[str, str]
+    soup: BeautifulSoup,
+    person: dict[str, Any],
+    meta: dict[str, str],
+    profile_name: str | None = None,
 ) -> list[ProfileImage]:
     images: list[ProfileImage] = []
     for value, source in (
@@ -841,8 +844,45 @@ def _extract_images(
             images.append(ProfileImage(url=url, source=source))
 
     for image in soup.select(
-        "img.pv-top-card-profile-picture__image, img.profile-photo-edit__preview, img.top-card__profile-image"
+        "img.pv-top-card-profile-picture__image, "
+        "img.profile-photo-edit__preview, "
+        "img.top-card__profile-image"
     ):
+        src = image.get("src") or image.get("data-delayed-url")
+        if src and _is_profile_photo_candidate(image, src, profile_name):
+            images.append(
+                ProfileImage(
+                    url=src,
+                    width=_int_or_none(image.get("width")),
+                    height=_int_or_none(image.get("height")),
+                    source="dom",
+                )
+            )
+
+    current_markup_candidates: list[Tag] = []
+    for image in soup.select(
+        "img[src*='profile-displayphoto'], "
+        "img[data-delayed-url*='profile-displayphoto']"
+    ):
+        src = image.get("src") or image.get("data-delayed-url")
+        if src and _is_profile_photo_candidate(image, src, profile_name):
+            current_markup_candidates.append(image)
+
+    preferred_candidates = [
+        image
+        for image in current_markup_candidates
+        if _ancestor_aria_label_matches(image, "profile photo")
+    ]
+    if not preferred_candidates:
+        preferred_candidates = [
+            image
+            for image in current_markup_candidates
+            if _image_alt_matches_profile(image, profile_name)
+        ]
+    if not preferred_candidates and current_markup_candidates:
+        preferred_candidates = [current_markup_candidates[0]]
+
+    for image in preferred_candidates:
         src = image.get("src") or image.get("data-delayed-url")
         if src:
             images.append(
@@ -860,6 +900,51 @@ def _extract_images(
             deduped.append(image)
             seen.add(image.url)
     return deduped
+
+
+def _ancestor_aria_label_matches(image: Tag, label: str) -> bool:
+    current = image.parent
+    while isinstance(current, Tag):
+        if clean_text(current.get("aria-label") or "").lower() == label:
+            return True
+        current = current.parent
+    return False
+
+
+def _image_alt_matches_profile(image: Tag, profile_name: str | None) -> bool:
+    if not profile_name:
+        return False
+    alt = clean_text(image.get("alt") or "").lower()
+    return bool(alt and profile_name.lower() in alt and "profile" in alt)
+
+
+def _is_profile_photo_candidate(
+    image: Tag, url: str, profile_name: str | None = None
+) -> bool:
+    lowered_url = url.lower()
+    if "profile-displaybackground" in lowered_url or "company-logo" in lowered_url:
+        return False
+
+    known_profile_selector = any(
+        class_name in (image.get("class") or [])
+        for class_name in (
+            "pv-top-card-profile-picture__image",
+            "profile-photo-edit__preview",
+            "top-card__profile-image",
+        )
+    )
+    if known_profile_selector:
+        return True
+
+    if "profile-displayphoto" not in lowered_url:
+        return False
+
+    alt = clean_text(image.get("alt") or "")
+    if not alt:
+        return True
+    if alt.lower().startswith("view company:"):
+        return False
+    return _image_alt_matches_profile(image, profile_name)
 
 
 def _image_urls(value: Any) -> Iterable[str]:

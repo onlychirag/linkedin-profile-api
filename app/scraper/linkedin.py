@@ -45,23 +45,23 @@ class LinkedInScraper:
                 warnings.append(f"authenticated HTTP scrape failed: {exc}")
 
         public_profile.extraction.warnings.extend(warnings)
-        if authenticated_http_profile is not None and (
-            not self.settings.enable_browser_scraper
-            or authenticated_http_profile.experience
-            or authenticated_http_profile.education
-        ):
-            return merge_profiles(authenticated_http_profile, public_profile)
+        fallback_profile = (
+            merge_profiles(authenticated_http_profile, public_profile)
+            if authenticated_http_profile is not None
+            else public_profile
+        )
+        if authenticated_http_profile is not None and not self.settings.enable_browser_scraper:
+            return fallback_profile
 
         if not self.settings.enable_browser_scraper:
-            if authenticated_http_profile is not None:
-                return merge_profiles(authenticated_http_profile, public_profile)
-            if profile_has_core_data(public_profile):
-                return public_profile
+            if profile_has_core_data(fallback_profile):
+                return fallback_profile
             if warnings:
                 raise ScraperError("; ".join(warnings))
             raise ScraperError("Public profile metadata was not available")
 
         browser_profile: LinkedInProfile | None = None
+        browser_warning_start = len(warnings)
         for backend in self._backend_order():
             try:
                 if backend == "drission":
@@ -81,17 +81,17 @@ class LinkedInScraper:
                 if self.settings.browser_backend in {"playwright", "drission"}:
                     raise ScraperError(f"Unable to extract profile: {exc}") from exc
 
-        public_profile.extraction.warnings.extend(warnings)
+        fallback_profile.extraction.warnings.extend(warnings[browser_warning_start:])
         if browser_profile is None:
             if authenticated_http_profile is not None:
-                return merge_profiles(authenticated_http_profile, public_profile)
-            if profile_has_core_data(public_profile):
-                return public_profile
+                return fallback_profile
+            if profile_has_core_data(fallback_profile):
+                return fallback_profile
             if warnings:
                 raise ScraperError("; ".join(warnings))
             raise ScraperError("Unable to extract profile")
 
-        return merge_profiles(browser_profile, public_profile)
+        return merge_profiles(browser_profile, fallback_profile)
 
     def _backend_order(self) -> list[str]:
         backend = self.settings.browser_backend

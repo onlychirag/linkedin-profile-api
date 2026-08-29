@@ -51,6 +51,8 @@ class Settings:
     )
     linkedin_password: str | None = os.getenv("LINKEDIN_PASSWORD") or None
     proxy_url: str | None = os.getenv("PROXY_URL") or None
+    upstream_api_base_url: str | None = os.getenv("UPSTREAM_API_BASE_URL") or None
+    upstream_api_key: str | None = os.getenv("UPSTREAM_API_KEY") or None
     linkedin_user_data_dir: Path = Path(
         os.getenv("LINKEDIN_USER_DATA_DIR", ".auth/linkedin-browser-profile")
     )

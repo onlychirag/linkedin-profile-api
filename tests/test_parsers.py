@@ -58,6 +58,42 @@ def test_parse_profile_html_reads_jsonld_and_open_graph() -> None:
     assert profile.profile_images[0].url == "https://example.test/jane.jpg"
 
 
+def test_parse_profile_html_reads_current_linkedin_profile_photo_markup() -> None:
+    html = """
+    <main>
+      <h1>Meet Shah</h1>
+      <img
+        class="randomized-class"
+        alt="Cover photo"
+        src="https://media.licdn.com/dms/image/v2/cover/profile-displaybackgroundimage-shrink_200_800"
+      />
+      <img
+        class="randomized-class"
+        alt=""
+        src="https://media.licdn.com/dms/image/v2/nav/profile-displayphoto-scale_100_100"
+      />
+      <div aria-label="Profile photo">
+        <img
+          class="randomized-class"
+          alt=""
+          src="https://media.licdn.com/dms/image/v2/person/profile-displayphoto-scale_100_100"
+        />
+      </div>
+      <img
+        class="randomized-class"
+        alt="View Other Person's profile"
+        src="https://media.licdn.com/dms/image/v2/other/profile-displayphoto-shrink_100_100"
+      />
+    </main>
+    """
+
+    profile = parse_profile_html(html, "https://www.linkedin.com/in/meetcshah19/")
+
+    assert [image.url for image in profile.profile_images] == [
+        "https://media.licdn.com/dms/image/v2/person/profile-displayphoto-scale_100_100"
+    ]
+
+
 def test_parse_profile_html_uses_own_profile_location_before_open_to_work() -> None:
     html = """
     <main>

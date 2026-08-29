@@ -1,17 +1,20 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from typing import Any
+from urllib.parse import urlparse
 
+import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel, Field
 
 from app.config import Settings, get_settings
 from app.errors import AuthenticationRequired, InvalidLinkedInUrl, ScraperError
 from app.models import LinkedInProfile
 from app.scraper.linkedin import LinkedInScraper
-from app.scraper.session import has_persistent_user_data_dir
+from app.scraper.session import has_persistent_user_data_dir, load_storage_state_data
 
 
 class ProfileRequest(BaseModel):
@@ -229,6 +232,49 @@ def home_page_html() -> str:
     .status-msg{margin-top:14px;font-size:13px;color:var(--muted);min-height:20px;overflow-wrap:anywhere}
     .status-msg.ok{color:var(--ok)}
     .status-msg.error{color:var(--danger)}
+    .profile-preview{
+      display:none;align-items:center;gap:12px;margin-top:16px;padding:12px;
+      border-radius:8px;background:var(--glass);border:1px solid var(--border);
+    }
+    .profile-preview.visible{display:flex}
+    .profile-photo,.profile-placeholder{
+      width:64px;height:64px;border-radius:50%;flex-shrink:0;border:1px solid var(--border);
+    }
+    .profile-photo{object-fit:cover;background:rgba(255,255,255,.03)}
+    .profile-placeholder{
+      display:none;place-items:center;background:var(--grad);color:#fff;
+      font-size:18px;font-weight:900;
+    }
+    .profile-preview.no-photo .profile-photo{display:none}
+    .profile-preview.no-photo .profile-placeholder{display:grid}
+    .preview-copy{min-width:0}
+    .preview-copy strong{display:block;font-size:15px;overflow-wrap:anywhere}
+    .preview-copy span{display:block;margin-top:4px;color:var(--muted);font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+    .profile-details{
+      display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);
+      gap:14px;
+    }
+    .profile-details.visible{display:grid}
+    .detail-block{display:grid;gap:8px}
+    .detail-heading{
+      color:var(--dim);font-size:11px;font-weight:800;text-transform:uppercase;
+      letter-spacing:.1em;
+    }
+    .detail-text{color:var(--muted);font-size:13px;line-height:1.55;overflow-wrap:anywhere}
+    .tag-list{display:flex;flex-wrap:wrap;gap:6px}
+    .tag{
+      max-width:100%;padding:6px 9px;border-radius:999px;background:var(--glass);
+      border:1px solid var(--border);color:var(--ink);font-size:12px;font-weight:700;
+      overflow-wrap:anywhere;
+    }
+    .compact-list{list-style:none;display:grid;gap:8px}
+    .compact-list li{
+      padding-left:10px;border-left:2px solid rgba(59,130,246,.35);
+      min-width:0;
+    }
+    .compact-list strong{display:block;color:var(--ink);font-size:13px;line-height:1.35;overflow-wrap:anywhere}
+    .compact-list span{display:block;margin-top:3px;color:var(--muted);font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+    .empty-detail{color:var(--dim);font-size:12px;line-height:1.45}
 
     pre{
       margin:0;min-height:480px;max-height:calc(100vh - 200px);overflow:auto;
@@ -397,11 +443,58 @@ def home_page_html() -> str:
           </button>
           <div id="status" class="status-msg"></div>
         </form>
+        <div id="profile-preview" class="profile-preview">
+          <img id="profile-photo" class="profile-photo" alt="">
+          <div id="profile-placeholder" class="profile-placeholder">?</div>
+          <div class="preview-copy">
+            <strong id="preview-name">—</strong>
+            <span id="preview-meta">—</span>
+          </div>
+        </div>
         <div class="summary">
           <div class="summary-item"><span>Name</span><strong id="summary-name">—</strong></div>
           <div class="summary-item"><span>Location</span><strong id="summary-location">—</strong></div>
           <div class="summary-item"><span>Experience</span><strong id="summary-experience">—</strong></div>
           <div class="summary-item"><span>Education</span><strong id="summary-education">—</strong></div>
+          <div class="summary-item"><span>Photo</span><strong id="summary-photo">—</strong></div>
+          <div class="summary-item"><span>Skills</span><strong id="summary-skills">—</strong></div>
+          <div class="summary-item"><span>Certificates</span><strong id="summary-certifications">—</strong></div>
+          <div class="summary-item"><span>Languages</span><strong id="summary-languages">—</strong></div>
+        </div>
+        <div id="profile-details" class="profile-details">
+          <section class="detail-block">
+            <div class="detail-heading">Headline</div>
+            <p id="detail-headline" class="detail-text">—</p>
+          </section>
+          <section class="detail-block">
+            <div class="detail-heading">About</div>
+            <p id="detail-about" class="detail-text">—</p>
+          </section>
+          <section class="detail-block">
+            <div class="detail-heading">Skills</div>
+            <div id="detail-skills" class="tag-list"></div>
+          </section>
+          <section class="detail-block">
+            <div class="detail-heading">Certifications</div>
+            <ul id="detail-certifications" class="compact-list"></ul>
+          </section>
+          <section class="detail-block">
+            <div class="detail-heading">Experience</div>
+            <ul id="detail-experience" class="compact-list"></ul>
+          </section>
+          <section class="detail-block">
+            <div class="detail-heading">Education</div>
+            <ul id="detail-education" class="compact-list"></ul>
+          </section>
+          <section class="detail-block">
+            <div class="detail-heading">Languages</div>
+            <ul id="detail-languages" class="compact-list"></ul>
+          </section>
+          <section class="detail-block">
+            <div class="detail-heading">Extraction</div>
+            <div id="detail-strategies" class="tag-list"></div>
+            <ul id="detail-warnings" class="compact-list"></ul>
+          </section>
         </div>
       </div>
       <div class="panel">
@@ -452,13 +545,150 @@ def home_page_html() -> str:
     const sLoc=document.querySelector('#summary-location');
     const sExp=document.querySelector('#summary-experience');
     const sEdu=document.querySelector('#summary-education');
+    const sPhoto=document.querySelector('#summary-photo');
+    const sSkills=document.querySelector('#summary-skills');
+    const sCerts=document.querySelector('#summary-certifications');
+    const sLang=document.querySelector('#summary-languages');
+    const preview=document.querySelector('#profile-preview');
+    const previewPhoto=document.querySelector('#profile-photo');
+    const previewPlaceholder=document.querySelector('#profile-placeholder');
+    const previewName=document.querySelector('#preview-name');
+    const previewMeta=document.querySelector('#preview-meta');
+    const profileDetails=document.querySelector('#profile-details');
+    const detailHeadline=document.querySelector('#detail-headline');
+    const detailAbout=document.querySelector('#detail-about');
+    const detailSkills=document.querySelector('#detail-skills');
+    const detailCertifications=document.querySelector('#detail-certifications');
+    const detailExperience=document.querySelector('#detail-experience');
+    const detailEducation=document.querySelector('#detail-education');
+    const detailLanguages=document.querySelector('#detail-languages');
+    const detailStrategies=document.querySelector('#detail-strategies');
+    const detailWarnings=document.querySelector('#detail-warnings');
+
+    function initials(name){
+      return (name||'?').split(/\s+/).filter(Boolean).slice(0,2).map(p=>p[0]).join('').toUpperCase()||'?';
+    }
+
+    function clearNode(node){
+      while(node.firstChild)node.removeChild(node.firstChild);
+    }
+
+    function textOrDash(value){
+      return value&&String(value).trim()?String(value).trim():'—';
+    }
+
+    function joinParts(parts){
+      return parts.filter(Boolean).map(String).join(' | ');
+    }
+
+    function dateRange(start,end){
+      if(start&&end)return `${start} - ${end}`;
+      return start||end||'';
+    }
+
+    function appendEmpty(node,text){
+      clearNode(node);
+      const el=document.createElement(node.tagName==='UL'?'li':'span');
+      el.className='empty-detail';
+      el.textContent=text;
+      node.appendChild(el);
+    }
+
+    function renderTags(node,items,getLabel,limit=12,emptyText='No data returned'){
+      clearNode(node);
+      const values=Array.isArray(items)?items.map(getLabel).filter(Boolean):[];
+      if(!values.length){appendEmpty(node,emptyText);return}
+      values.slice(0,limit).forEach(value=>{
+        const tag=document.createElement('span');
+        tag.className='tag';
+        tag.textContent=value;
+        node.appendChild(tag);
+      });
+      if(values.length>limit){
+        const more=document.createElement('span');
+        more.className='tag';
+        more.textContent=`+${values.length-limit} more`;
+        node.appendChild(more);
+      }
+    }
+
+    function renderList(node,items,mapItem,limit=5,emptyText='No data returned'){
+      clearNode(node);
+      const values=Array.isArray(items)?items:[];
+      if(!values.length){appendEmpty(node,emptyText);return}
+      values.slice(0,limit).forEach(item=>{
+        const mapped=mapItem(item);
+        const li=document.createElement('li');
+        const title=document.createElement('strong');
+        title.textContent=textOrDash(mapped.title);
+        li.appendChild(title);
+        if(mapped.meta){
+          const meta=document.createElement('span');
+          meta.textContent=mapped.meta;
+          li.appendChild(meta);
+        }
+        node.appendChild(li);
+      });
+      if(values.length>limit){
+        const li=document.createElement('li');
+        const title=document.createElement('strong');
+        title.textContent=`+${values.length-limit} more in JSON`;
+        li.appendChild(title);
+        node.appendChild(li);
+      }
+    }
 
     function setSummary(p){
       sName.textContent=p?.name||'—';
       sLoc.textContent=p?.location||'—';
       sExp.textContent=Array.isArray(p?.experience)?String(p.experience.length):'—';
       sEdu.textContent=Array.isArray(p?.education)?String(p.education.length):'—';
+      sPhoto.textContent=Array.isArray(p?.profile_images)?String(p.profile_images.length):'—';
+      sSkills.textContent=Array.isArray(p?.skills)?String(p.skills.length):'—';
+      sCerts.textContent=Array.isArray(p?.certifications)?String(p.certifications.length):'—';
+      sLang.textContent=Array.isArray(p?.languages)?String(p.languages.length):'—';
+
+      preview.classList.toggle('visible',Boolean(p));
+      profileDetails.classList.toggle('visible',Boolean(p));
+      previewName.textContent=p?.name||'—';
+      previewMeta.textContent=p?.headline||p?.location||'No photo returned';
+      previewPlaceholder.textContent=initials(p?.name);
+      const imageUrl=Array.isArray(p?.profile_images)&&p.profile_images[0]?.url;
+      preview.classList.toggle('no-photo',!imageUrl);
+      previewPhoto.removeAttribute('src');
+      previewPhoto.alt=p?.name?`${p.name} profile photo`:'Profile photo';
+      if(imageUrl)previewPhoto.src='/api/image?url='+encodeURIComponent(imageUrl);
+
+      detailHeadline.textContent=textOrDash(p?.headline);
+      detailAbout.textContent=textOrDash(p?.about);
+      renderTags(detailSkills,p?.skills,item=>item.name,15,'No skills returned');
+      renderList(detailCertifications,p?.certifications,item=>({
+        title:item.name||'Untitled certification',
+        meta:joinParts([item.issuer,dateRange(item.issue_date,item.expiration_date),item.credential_id&&`Credential ${item.credential_id}`])
+      }),5,'No certifications returned');
+      renderList(detailExperience,p?.experience,item=>({
+        title:item.title||item.company||'Experience item',
+        meta:joinParts([item.company,item.employment_type,dateRange(item.start_date,item.end_date),item.duration,item.location])
+      }),5,'No experience returned');
+      renderList(detailEducation,p?.education,item=>({
+        title:item.school||'Education item',
+        meta:joinParts([item.degree,item.field_of_study,dateRange(item.start_date,item.end_date)])
+      }),4,'No education returned');
+      renderList(detailLanguages,p?.languages,item=>({
+        title:item.name||'Language',
+        meta:item.proficiency||''
+      }),5,'No languages returned');
+      renderTags(detailStrategies,p?.extraction?.strategies,item=>item,12,'No extraction strategies returned');
+      renderList(detailWarnings,p?.extraction?.warnings,item=>({
+        title:item,
+        meta:''
+      }),4,'No warnings');
     }
+
+    previewPhoto.addEventListener('error',()=>{
+      preview.classList.add('no-photo');
+      previewMeta.textContent='Photo URL returned, but the image could not be loaded here';
+    });
 
     document.querySelectorAll('[data-profile-url]').forEach(b=>{
       b.addEventListener('click',()=>{input.value=b.dataset.profileUrl;form.requestSubmit()});
@@ -512,6 +742,7 @@ def create_app() -> FastAPI:
     async def health() -> dict[str, str | bool]:
         return {
             "status": "ok",
+            "upstream_proxy_enabled": bool(settings.upstream_api_base_url),
             "browser_backend": settings.browser_backend,
             "browser_scraper_enabled": settings.enable_browser_scraper,
             "auth_http_scraper_enabled": settings.enable_auth_http_scraper,
@@ -526,12 +757,73 @@ def create_app() -> FastAPI:
             ),
         }
 
+    @app.get("/api/image")
+    async def proxy_linkedin_image(
+        url: str = Query(..., description="LinkedIn media image URL"),
+        _: None = Depends(require_api_key),
+    ) -> Response:
+        if settings.upstream_api_base_url:
+            return await _proxy_upstream_image(settings, url)
+
+        parsed = urlparse(url)
+        if parsed.scheme != "https" or parsed.hostname != "media.licdn.com":
+            raise HTTPException(
+                status_code=422,
+                detail="Only LinkedIn media image URLs are supported",
+            )
+
+        cookies = httpx.Cookies()
+        storage_state = load_storage_state_data(settings)
+        if storage_state:
+            for item in storage_state.get("cookies", []):
+                domain = item.get("domain", "")
+                if "linkedin.com" not in domain:
+                    continue
+                name = item.get("name")
+                value = item.get("value")
+                if not name or value is None:
+                    continue
+                cookies.set(name, value, domain=domain, path=item.get("path", "/"))
+
+        headers = {
+            "accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+            "referer": "https://www.linkedin.com/",
+            "user-agent": settings.user_agent,
+        }
+        async with httpx.AsyncClient(
+            cookies=cookies,
+            headers=headers,
+            follow_redirects=True,
+            timeout=settings.request_timeout_ms / 1000,
+        ) as client:
+            image_response = await client.get(url)
+
+        content_type = image_response.headers.get("content-type", "")
+        if image_response.status_code >= 400 or not content_type.startswith("image/"):
+            raise HTTPException(
+                status_code=502,
+                detail="LinkedIn image could not be fetched",
+            )
+
+        return Response(
+            content=image_response.content,
+            media_type=content_type,
+            headers={"Cache-Control": "private, max-age=300"},
+        )
+
     @app.post("/api/v1/profiles", response_model=LinkedInProfile)
     async def scrape_profile_post(
         payload: ProfileRequest,
         _: None = Depends(require_api_key),
         scraper: LinkedInScraper = Depends(get_scraper),
     ) -> LinkedInProfile:
+        if settings.upstream_api_base_url:
+            return await _proxy_upstream_profile(
+                settings,
+                "POST",
+                "/api/v1/profiles",
+                json={"url": payload.url},
+            )
         return await _scrape(payload.url, scraper)
 
     @app.get("/api/v1/profiles", response_model=LinkedInProfile)
@@ -540,6 +832,13 @@ def create_app() -> FastAPI:
         _: None = Depends(require_api_key),
         scraper: LinkedInScraper = Depends(get_scraper),
     ) -> LinkedInProfile:
+        if settings.upstream_api_base_url:
+            return await _proxy_upstream_profile(
+                settings,
+                "GET",
+                "/api/v1/profiles",
+                params={"url": url},
+            )
         return await _scrape(url, scraper)
 
     @app.get("/api/profile", response_model=LinkedInProfile)
@@ -548,6 +847,13 @@ def create_app() -> FastAPI:
         _: None = Depends(require_api_key),
         scraper: LinkedInScraper = Depends(get_scraper),
     ) -> LinkedInProfile:
+        if settings.upstream_api_base_url:
+            return await _proxy_upstream_profile(
+                settings,
+                "GET",
+                "/api/profile",
+                params={"url": url},
+            )
         return await _scrape(url, scraper)
 
     return app
@@ -565,6 +871,103 @@ async def require_api_key(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing or invalid API key",
         )
+
+
+def _upstream_url(settings: Settings, path: str) -> str:
+    base_url = (settings.upstream_api_base_url or "").rstrip("/")
+    return f"{base_url}{path}"
+
+
+def _upstream_headers(settings: Settings) -> dict[str, str]:
+    headers = {"accept": "application/json"}
+    if settings.upstream_api_key:
+        headers["x-api-key"] = settings.upstream_api_key
+    return headers
+
+
+async def _proxy_upstream_profile(
+    settings: Settings,
+    method: str,
+    path: str,
+    params: dict[str, str] | None = None,
+    json: dict[str, str] | None = None,
+) -> LinkedInProfile:
+    try:
+        async with httpx.AsyncClient(
+            timeout=settings.request_timeout_ms / 1000,
+            follow_redirects=True,
+        ) as client:
+            response = await client.request(
+                method,
+                _upstream_url(settings, path),
+                params=params,
+                json=json,
+                headers=_upstream_headers(settings),
+            )
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Upstream scraper is unreachable: {exc}",
+        ) from exc
+
+    if response.status_code >= 400:
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=_upstream_error_detail(response),
+        )
+
+    try:
+        return LinkedInProfile.model_validate(response.json())
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Upstream scraper returned an invalid profile response",
+        ) from exc
+
+
+async def _proxy_upstream_image(settings: Settings, url: str) -> Response:
+    headers = {"accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"}
+    if settings.upstream_api_key:
+        headers["x-api-key"] = settings.upstream_api_key
+
+    try:
+        async with httpx.AsyncClient(
+            timeout=settings.request_timeout_ms / 1000,
+            follow_redirects=True,
+        ) as client:
+            response = await client.get(
+                _upstream_url(settings, "/api/image"),
+                params={"url": url},
+                headers=headers,
+            )
+    except httpx.RequestError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Upstream image proxy is unreachable: {exc}",
+        ) from exc
+
+    content_type = response.headers.get("content-type", "")
+    if response.status_code >= 400 or not content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=response.status_code if response.status_code >= 400 else 502,
+            detail=_upstream_error_detail(response),
+        )
+
+    return Response(
+        content=response.content,
+        media_type=content_type,
+        headers={"Cache-Control": "private, max-age=300"},
+    )
+
+
+def _upstream_error_detail(response: httpx.Response) -> str | Any:
+    try:
+        data = response.json()
+    except ValueError:
+        return response.text[:500] or "Upstream scraper request failed"
+    if isinstance(data, dict) and "detail" in data:
+        return data["detail"]
+    return data
 
 
 async def _scrape(url: str, scraper: LinkedInScraper) -> LinkedInProfile:

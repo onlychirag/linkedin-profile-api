@@ -6,7 +6,7 @@
     "ENABLE_AUTH_HTTP_SCRAPER": "true",
     "ENABLE_DRISSION_SCRAPER": "false",
     "BROWSER_BACKEND": "playwright",
-    "REQUEST_TIMEOUT_MS": "60000"
+    "REQUEST_TIMEOUT_MS": "180000"
   },
   "services": {
     "linkedin-profile-api": {

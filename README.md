@@ -162,6 +162,48 @@ uses its Python runtime with lightweight dependencies and browser scraping
 disabled. The Vercel deployment is for the authenticated HTTP scraper only; it
 does not install or launch Playwright/Chromium.
 
+### Hybrid Vercel + Oracle Cloud
+
+For full skills, certifications, and profile photos, run the scraper on an
+Oracle Cloud VM and keep Vercel as the public website. In this mode, Vercel
+serves the UI and forwards `/api/profile` plus `/api/image` to the Oracle API.
+
+Oracle `.env`:
+
+```bash
+API_KEY=choose-a-long-secret
+ENABLE_BROWSER_SCRAPER=true
+ENABLE_AUTH_HTTP_SCRAPER=true
+ENABLE_DRISSION_SCRAPER=false
+BROWSER_BACKEND=playwright
+PLAYWRIGHT_HEADLESS=true
+REQUEST_TIMEOUT_MS=180000
+LINKEDIN_STORAGE_STATE_B64=...
+ALLOWED_ORIGINS=https://your-vercel-app.vercel.app
+```
+
+Oracle Docker run:
+
+```bash
+docker build -t linkedin-profile-api .
+docker run -d --name linkedin-profile-api --restart unless-stopped \
+  -p 8000:8000 --env-file .env linkedin-profile-api
+```
+
+Vercel environment variables:
+
+```bash
+UPSTREAM_API_BASE_URL=https://your-oracle-api.example.com
+UPSTREAM_API_KEY=choose-a-long-secret
+ENABLE_BROWSER_SCRAPER=false
+ENABLE_DRISSION_SCRAPER=false
+REQUEST_TIMEOUT_MS=180000
+```
+
+Use HTTPS for the Oracle API through Cloudflare Tunnel, Caddy, Nginx, or a
+load balancer. A raw `http://oracle-ip:8000` upstream can work server-to-server,
+but it exposes the upstream key over plain HTTP.
+
 Any Docker host works too:
 
 ```bash
@@ -187,6 +229,8 @@ docker run -p 8000:8000 --env-file .env linkedin-profile-api
 | `LINKEDIN_EMAIL` | empty | Backend LinkedIn email. `LINKEDIN_USERNAME` is accepted as an alias. |
 | `LINKEDIN_PASSWORD` | empty | Backend LinkedIn password. |
 | `PROXY_URL` | empty | Optional proxy URL for the DrissionPage backend. |
+| `UPSTREAM_API_BASE_URL` | empty | Optional upstream API URL. When set, this deployment proxies profile and image requests to that server instead of scraping locally. |
+| `UPSTREAM_API_KEY` | empty | Optional API key sent to the upstream scraper through `X-API-Key`. |
 | `LINKEDIN_USER_DATA_DIR` | `.auth/linkedin-browser-profile` | Persistent Playwright browser profile directory. |
 | `LINKEDIN_STORAGE_STATE_PATH` | `.auth/linkedin-state.json` | Local Playwright session file. |
 | `LINKEDIN_STORAGE_STATE_B64` | empty | Hosted session state as base64 JSON. |
