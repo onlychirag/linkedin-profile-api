@@ -131,12 +131,6 @@ def parse_profile_html(html: str, requested_url: str, resolved_url: str | None =
         _selector_text(soup, "main h1"),
         title_name,
     )
-    headline = _first_present(
-        _string_from_json(person.get("jobTitle")),
-        _selector_text(soup, ".text-body-medium.break-words"),
-        _selector_text(soup, ".top-card-layout__headline"),
-        title_headline,
-    )
     location = _first_present(
         _address_from_json(person.get("address")),
         _selector_text(soup, ".top-card__subline-item"),
@@ -144,7 +138,21 @@ def parse_profile_html(html: str, requested_url: str, resolved_url: str | None =
         _profile_location_from_body_lines(soup, name),
         _best_location_line(soup),
     )
-    about = _extract_about(soup)
+    
+    og_desc = meta.get("og:description") or meta.get("description")
+    
+    headline = _first_present(
+        _string_from_json(person.get("jobTitle")),
+        _selector_text(soup, ".text-body-medium.break-words"),
+        _selector_text(soup, ".top-card-layout__headline"),
+        _extract_meta_headline(og_desc),
+        title_headline,
+    )
+    
+    about = _first_present(
+        _extract_about(soup),
+        _extract_meta_about(og_desc)
+    )
     images = _extract_images(soup, person, meta, name)
 
     strategies = ["public-metadata"] if (person or meta) else ["html-dom"]
@@ -816,6 +824,24 @@ def _looks_like_location(line: str) -> bool:
     return "," in line and len(line) <= 90
 
 
+def _extract_meta_headline(description: str | None) -> str | None:
+    if not description:
+        return None
+    parts = description.split(" | ")
+    for part in parts:
+        if part.strip().startswith("Headline:"):
+            return clean_text(part.replace("Headline:", "", 1))
+    return None
+
+def _extract_meta_about(description: str | None) -> str | None:
+    if not description:
+        return None
+    parts = description.split(" | ")
+    for part in parts:
+        if part.strip().startswith("About:"):
+            return clean_text(part.replace("About:", "", 1))
+    return None
+
 def _extract_about(soup: BeautifulSoup) -> str | None:
     anchors = soup.select("#about")
     for anchor in anchors:
@@ -826,6 +852,32 @@ def _extract_about(soup: BeautifulSoup) -> str | None:
         long_lines = [line for line in lines if len(line) > 25]
         if long_lines:
             return max(long_lines, key=len)
+            
+    # Try the newer structured about section format
+    about_card = soup.find("div", {"id": "about"})
+    if not about_card:
+        for card in soup.select("section.artdeco-card"):
+            heading = card.find(["h2", "h3"])
+            if heading and "about" in heading.get_text().strip().lower():
+                about_card = card
+                break
+
+    if about_card:
+        text_container = about_card.select_one(
+            ".inline-show-more-text, .display-flex.ph5.pv3 .visually-hidden"
+        )
+        if text_container:
+            text = text_container.get_text(separator="\n").strip()
+            lines = [line.strip() for line in text.split("\n") if line.strip()]
+            filtered = [
+                line
+                for line in lines
+                if not line.lower().startswith("see more")
+                and not line.lower().startswith("show less")
+            ]
+            if filtered:
+                return "\n".join(filtered)
+                
     return None
 
 
