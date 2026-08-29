@@ -147,11 +147,13 @@ def parse_profile_html(html: str, requested_url: str, resolved_url: str | None =
         _selector_text(soup, ".top-card-layout__headline"),
         _extract_meta_headline(og_desc),
         title_headline,
+        _extract_headline_from_text(soup, title_name),
     )
     
     about = _first_present(
         _extract_about(soup),
-        _extract_meta_about(og_desc)
+        _extract_meta_about(og_desc),
+        _extract_about_from_text(soup)
     )
     images = _extract_images(soup, person, meta, name)
 
@@ -390,7 +392,23 @@ def _text_detail_groups(text: str, section: str) -> list[list[str]]:
         return _groups_around_dates(lines)
     if section == "certifications":
         return _groups_around_dates(lines) or ([lines] if len(lines) >= 2 else [])
-    if section in {"skills", "languages"}:
+    if section == "languages":
+        grouped = []
+        proficiencies = {"native or bilingual proficiency", "full professional proficiency", "professional working proficiency", "limited working proficiency", "elementary proficiency"}
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            if len(line) <= 100:
+                if i + 1 < len(lines) and lines[i+1].lower() in proficiencies:
+                    grouped.append([line, lines[i+1]])
+                    i += 2
+                else:
+                    grouped.append([line])
+                    i += 1
+            else:
+                i += 1
+        return grouped
+    if section == "skills":
         return [[line] for line in lines if len(line) <= 100]
     return []
 
@@ -833,6 +851,43 @@ def _extract_meta_headline(description: str | None) -> str | None:
             return clean_text(part.replace("Headline:", "", 1))
     return None
 
+def _extract_headline_from_text(soup: BeautifulSoup, name: str | None) -> str | None:
+    if not name:
+        return None
+    
+    full_text = soup.get_text('\n', strip=True)
+    lines = [line.strip() for line in full_text.split('\n') if line.strip()]
+    
+    for i, line in enumerate(lines):
+        if line.lower() == name.lower() and i + 1 < len(lines):
+            # Scan the next 10 lines for the headline
+            for j in range(1, 15):
+                if i + j >= len(lines):
+                    break
+                next_line = lines[i + j]
+                
+                # Skip meaningless single characters or UI text
+                if len(next_line) <= 1 or next_line.startswith('Verify'):
+                    continue
+                    
+                # Skip action buttons on own profile
+                if next_line in ("Resources", "Enhance profile", "Add section", "Open to", "Contact info", "Show all", "Share Profile"):
+                    continue
+                    
+                # Skip if it's the name again
+                if next_line.lower() == name.lower():
+                    continue
+                    
+                # Skip if we reach a known section
+                if next_line in ("Activity", "About", "Experience", "More profiles for you", "Premium member", "Show details", "Get started", "Add custom button"):
+                    break
+                
+                # The first long-ish text is likely the headline!
+                if len(next_line) > 5:
+                    return next_line
+                    
+    return None
+
 def _extract_meta_about(description: str | None) -> str | None:
     if not description:
         return None
@@ -840,6 +895,28 @@ def _extract_meta_about(description: str | None) -> str | None:
     for part in parts:
         if part.strip().startswith("About:"):
             return clean_text(part.replace("About:", "", 1))
+    return None
+
+def _extract_about_from_text(soup: BeautifulSoup) -> str | None:
+    full_text = soup.get_text('\n', strip=True)
+    lines = [line.strip() for line in full_text.split('\n') if line.strip()]
+    
+    for i, line in enumerate(lines):
+        if line == 'About' and i + 1 < len(lines):
+            next_line = lines[i + 1]
+            # Make sure it's not the footer About
+            if next_line in ("Accessibility", "Talent Solutions", "Help Center", "Privacy & Terms", "Community Guidelines"):
+                continue
+            
+            # If the next line is long, it's the about section
+            if len(next_line) > 10:
+                # Let's collect up to the next section
+                about_lines = []
+                for j in range(i + 1, len(lines)):
+                    if lines[j] in ("Experience", "Education", "Skills", "Activity", "Featured", "More profiles for you", "Top skills"):
+                        break
+                    about_lines.append(lines[j])
+                return clean_text(' '.join(about_lines))
     return None
 
 def _extract_about(soup: BeautifulSoup) -> str | None:
