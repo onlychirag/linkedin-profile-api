@@ -23,6 +23,9 @@ from app.scraper.linkedin import LinkedInScraper
 from app.scraper.session import has_persistent_user_data_dir, load_storage_state_data
 
 
+class SessionUpdate(BaseModel):
+    storage_state_b64: str = Field(..., description="Base64-encoded Playwright storage state JSON")
+
 class ProfileRequest(BaseModel):
     url: str = Field(..., examples=["https://www.linkedin.com/in/example/"])
 
@@ -861,9 +864,6 @@ def create_app() -> FastAPI:
                 params={"url": url},
             )
         return await _scrape(url, scraper)
-
-    class SessionUpdate(BaseModel):
-        storage_state_b64: str = Field(..., description="Base64-encoded Playwright storage state JSON")
 
     @app.post("/api/auth/session")
     async def update_session(
