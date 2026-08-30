@@ -272,10 +272,6 @@ class LinkedInScraper:
                     authenticated = await self._ensure_authenticated(context, page)
                     await self._goto(page, url, PlaywrightTimeoutError)
                     if self._is_auth_wall(page.url):
-                        if attempt_headless:
-                            # Close everything and retry with a visible browser
-                            logger.info("Auth wall hit in headless mode; retrying headed...")
-                            continue
                         if not authenticated:
                             raise AuthenticationRequired(
                                 "LinkedIn requires authentication. Set LINKEDIN_EMAIL/LINKEDIN_PASSWORD "
