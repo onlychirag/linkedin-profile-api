@@ -228,8 +228,8 @@ class LinkedInScraper:
                 "Playwright is not installed. Run `pip install -r requirements.txt`."
             ) from exc
 
-        # Try headless first; if auth wall is hit, retry headed so user can intervene
-        for attempt_headless in (True, False):
+        # We only want headless mode on the server since headed will crash without xvfb
+        for attempt_headless in (True,):
             async with async_playwright() as playwright:
                 browser = None
                 context = None
