@@ -435,9 +435,8 @@ class LinkedInScraper:
         lowered = url.lower()
         if any(marker in lowered for marker in ("/login", "/checkpoint", "uas/login", "authwall")):
             return True
-        if html:
-            if "window.location.href = " in html and "authwall?trk=" in html:
-                return True
+        if html and len(html) < 5000 and "authwall" in html:
+            return True
         return False
 
     @staticmethod

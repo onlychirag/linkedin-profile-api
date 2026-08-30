@@ -28,7 +28,7 @@ class DrissionLinkedInScraper:
         try:
             authenticated = self._ensure_authenticated(page)
             self._goto(page, url)
-            if self._is_auth_wall(page.url):
+            if self._is_auth_wall(page.url, page.html):
                 raise AuthenticationRequired(
                     "LinkedIn redirected the DrissionPage browser to login/checkpoint."
                 )
@@ -42,7 +42,7 @@ class DrissionLinkedInScraper:
             for section in DETAIL_SECTIONS:
                 detail_url = f"{url.rstrip('/')}/details/{section}/"
                 self._goto(page, detail_url)
-                if self._is_auth_wall(page.url):
+                if self._is_auth_wall(page.url, page.html):
                     profile.extraction.warnings.append(
                         f"Skipped {section}; LinkedIn redirected to authentication."
                     )
@@ -171,7 +171,7 @@ class DrissionLinkedInScraper:
         return None
 
     def _page_looks_signed_in(self, page: Any) -> bool:
-        if self._is_auth_wall(page.url):
+        if self._is_auth_wall(page.url, page.html):
             return False
         text = ""
         try:
@@ -193,9 +193,10 @@ class DrissionLinkedInScraper:
         )
 
     @staticmethod
-    def _is_auth_wall(url: str) -> bool:
+    def _is_auth_wall(url: str, html: str = "") -> bool:
         lowered = url.lower()
-        return any(
-            marker in lowered
-            for marker in ("/login", "/checkpoint", "uas/login", "authwall")
-        )
+        if any(marker in lowered for marker in ("/login", "/checkpoint", "uas/login", "authwall")):
+            return True
+        if html and len(html) < 5000 and "authwall" in html:
+            return True
+        return False
