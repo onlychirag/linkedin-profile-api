@@ -458,6 +458,9 @@ def home_page_html() -> str:
           <button class="toggle-btn active" data-url="/api/profile?url=" type="button">☁️ AWS Server</button>
           <button class="toggle-btn" data-url="https://ontross.vercel.app/api/profile?url=" type="button">▲ Vercel</button>
         </div>
+        <p style="font-size:12px; color:var(--muted); margin-bottom:16px; line-height:1.45;">
+          <strong>Note:</strong> The AWS Server extracts all fields using a live LinkedIn session. If the session expires or gets logged out, the AWS scrape might fail. If that happens, please contact me to log back in! Alternatively, you can use the Vercel fallback, but it only extracts public data (skills, certifications, and languages will not appear).
+        </p>
         <h2>Profile Lookup</h2>
         <form id="scrape-form">
           <label for="profile-url">Profile URL</label>
