@@ -314,7 +314,7 @@ def compare_page_html() -> str:
 
   <script>
     const AWS_BASE = 'http://54.152.33.214:8000';
-    const LOCAL_BASE = '';  // same origin
+    const LOCAL_BASE = 'https://less-hammer-strategic-bids.trycloudflare.com';  // Cloudflare tunnel to laptop
 
     const MODES = {
       aws: {
