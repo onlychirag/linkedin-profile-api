@@ -166,6 +166,10 @@ class LinkedInScraper:
                 )
 
             profile = parse_profile_html(response.text, url, resolved_url=str(response.url))
+            if not profile.name:
+                with open("debug_empty_profile.html", "w", encoding="utf-8") as f:
+                    f.write(response.text)
+                logger.error(f"Saved empty profile HTML to debug_empty_profile.html for {url}")
             profile.extraction.authenticated = True
             profile.extraction.strategies.append("authenticated-http-profile")
             if response.status_code >= 400:
