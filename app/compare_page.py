@@ -1,4 +1,4 @@
-"""Comparison page HTML — AWS (full scraper) vs Local/Cloudflare (limited)."""
+"""Comparison page HTML — AWS (full scraper) vs Vercel (limited)."""
 
 
 def compare_page_html() -> str:
@@ -9,7 +9,7 @@ def compare_page_html() -> str:
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ontross — Backend Comparison</title>
-  <meta name="description" content="Compare AWS (full) vs Local (Cloudflare) LinkedIn scraper backends side-by-side.">
+  <meta name="description" content="Compare AWS (full) vs Vercel (public-only) LinkedIn scraper backends side-by-side.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -100,7 +100,7 @@ def compare_page_html() -> str:
     .info-banner h3{font-size:14px;font-weight:800;margin-bottom:4px}
     .info-banner p{color:var(--muted);font-size:13px;line-height:1.55}
     .info-banner.aws{border-color:rgba(34,197,94,.2)}
-    .info-banner.local{border-color:rgba(245,158,11,.2)}
+    .info-banner.vercel{border-color:rgba(245,158,11,.2)}
 
     /* ── Feature Comparison ── */
     .comparison{
@@ -152,7 +152,7 @@ def compare_page_html() -> str:
       vertical-align:middle;
     }
     .panel-badge.aws-badge{background:rgba(34,197,94,.1);color:var(--ok);border:1px solid rgba(34,197,94,.2)}
-    .panel-badge.local-badge{background:rgba(245,158,11,.1);color:var(--warn);border:1px solid rgba(245,158,11,.2)}
+    .panel-badge.vercel-badge{background:rgba(245,158,11,.1);color:var(--warn);border:1px solid rgba(245,158,11,.2)}
     label{display:block;margin-bottom:8px;color:var(--dim);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
     input[type="url"]{
       width:100%;padding:12px 14px;border-radius:8px;font-size:14px;
@@ -233,8 +233,8 @@ def compare_page_html() -> str:
 
   <main class="container">
     <section class="hero fade-up">
-      <h1>AWS vs Local Backend</h1>
-      <p class="hero-sub">Compare two deployment modes for the LinkedIn Profile API. Switch between them to understand the trade-offs.</p>
+      <h1>AWS vs Vercel Backend</h1>
+      <p class="hero-sub">Compare two deployment modes for the LinkedIn Profile API. AWS uses an authenticated browser for full data. Vercel uses public-only scraping.</p>
     </section>
 
     <!-- Toggle -->
@@ -242,8 +242,8 @@ def compare_page_html() -> str:
       <button class="toggle-btn active" data-mode="aws" type="button">
         <span class="toggle-icon">☁️</span> AWS Server
       </button>
-      <button class="toggle-btn" data-mode="local" type="button">
-        <span class="toggle-icon">💻</span> Local / Cloudflare
+      <button class="toggle-btn" data-mode="vercel" type="button">
+        <span class="toggle-icon">▲</span> Vercel
       </button>
     </div>
 
@@ -255,11 +255,11 @@ def compare_page_html() -> str:
         <p>Uses a headless Chromium browser on AWS (54.152.33.214) with an authenticated LinkedIn session. Extracts the richest data including detailed experience with dates, education fields, skills, certifications, and languages.</p>
       </div>
     </div>
-    <div class="info-banner local fade-up" id="info-local" style="display:none">
+    <div class="info-banner vercel fade-up" id="info-vercel" style="display:none">
       <span class="icon">🟡</span>
       <div>
-        <h3>Local / Cloudflare — Lightweight Mode</h3>
-        <p>Runs on your laptop via Cloudflare Tunnel. Uses your residential IP (trusted by LinkedIn) but relies on public HTTP scraping — no authenticated browser session. Returns less detailed data.</p>
+        <h3>Vercel — Serverless Public Mode</h3>
+        <p>Deployed on Vercel's serverless edge network at <strong>ontross.vercel.app</strong>. Uses public HTTP scraping without an authenticated browser session. Fast and free, but returns limited data compared to the full AWS scraper.</p>
       </div>
     </div>
 
@@ -314,7 +314,7 @@ def compare_page_html() -> str:
 
   <script>
     const AWS_BASE = 'http://54.152.33.214:8000';
-    const LOCAL_BASE = 'https://less-hammer-strategic-bids.trycloudflare.com';  // Cloudflare tunnel to laptop
+    const VERCEL_BASE = 'https://ontross.vercel.app';
 
     const MODES = {
       aws: {
@@ -338,10 +338,10 @@ def compare_page_html() -> str:
         ],
         limitsTitle: '⚠️ AWS Limitations',
       },
-      local: {
-        base: LOCAL_BASE,
-        badge: '💻 Local',
-        badgeClass: 'local-badge',
+      vercel: {
+        base: VERCEL_BASE,
+        badge: '▲ Vercel',
+        badgeClass: 'vercel-badge',
         features: [
           { label: 'Profile Name & Headline', status: 'check', text: 'Full' },
           { label: 'Experience (detailed)', status: 'partial', text: 'Basic — raw text only' },
@@ -356,9 +356,10 @@ def compare_page_html() -> str:
           { icon: '🔒', text: 'No authenticated session — LinkedIn returns only public-facing data.' },
           { icon: '📉', text: 'Skills, certifications, and languages are NOT returned because LinkedIn hides them behind login.' },
           { icon: '📝', text: 'Experience and education come as raw text strings instead of structured objects with dates.' },
-          { icon: '💻', text: 'Requires your laptop to be running with the Cloudflare tunnel active.' },
+          { icon: '⏱️', text: 'Vercel serverless functions have a 10-second timeout on the free tier — complex profiles may fail.' },
+          { icon: '🌐', text: 'Vercel uses datacenter IPs which LinkedIn may throttle with HTTP 999 responses.' },
         ],
-        limitsTitle: '⚠️ Local / Cloudflare Limitations',
+        limitsTitle: '⚠️ Vercel Limitations',
       }
     };
 
@@ -391,7 +392,7 @@ def compare_page_html() -> str:
         b.classList.toggle('active', b.dataset.mode === mode);
       });
       document.getElementById('info-aws').style.display = mode === 'aws' ? '' : 'none';
-      document.getElementById('info-local').style.display = mode === 'local' ? '' : 'none';
+      document.getElementById('info-vercel').style.display = mode === 'vercel' ? '' : 'none';
       const badge = document.getElementById('mode-badge');
       badge.textContent = MODES[mode].badge;
       badge.className = 'panel-badge ' + MODES[mode].badgeClass;
@@ -444,7 +445,7 @@ def compare_page_html() -> str:
       e.preventDefault();
       const base = MODES[currentMode].base;
       const apiUrl = base + '/api/profile?url=' + encodeURIComponent(input.value);
-      statusEl.className = 'status-msg'; statusEl.textContent = 'Running scrape via ' + (currentMode === 'aws' ? 'AWS' : 'Local') + '…';
+      statusEl.className = 'status-msg'; statusEl.textContent = 'Running scrape via ' + (currentMode === 'aws' ? 'AWS' : 'Vercel') + '…';
       button.disabled = true; button.classList.add('loading');
       output.textContent = '{}'; setSummary(null);
       try {
