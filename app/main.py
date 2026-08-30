@@ -347,12 +347,6 @@ def home_page_html() -> str:
   <div class="topbar">
     <div class="topbar-inner">
       <div class="brand"><span class="brand-mark">in</span><span>Ontross</span></div>
-      <nav>
-        <a href="/docs">Docs</a>
-        <a href="#founders">Founder Radar</a>
-        <a href="/health">Health</a>
-        <a href="/api/profile?url=https%3A%2F%2Fwww.linkedin.com%2Fin%2Fchirag-kakwani-8b4055284%2F">Sample JSON</a>
-      </nav>
     </div>
   </div>
 
