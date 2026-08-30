@@ -323,8 +323,6 @@ def _candidate_item_lines(soup: BeautifulSoup) -> list[list[str]]:
     selectors = [
         ".pvs-entity",
         "li.pvs-list__paged-list-item",
-        "li.pvs-list__item--with-top-padding",
-        "ul.pvs-list > li",
         "li.artdeco-list__item",
         "li.experience-item",
         "li.education__list-item",

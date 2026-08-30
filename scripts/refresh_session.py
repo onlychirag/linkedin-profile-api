@@ -31,7 +31,17 @@ async def main():
     print()
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False)
+        proxy = None
+        import os
+        proxy_url = os.getenv("PROXY_URL")
+        if proxy_url:
+            print(f"Using proxy: {proxy_url}")
+            proxy = {"server": proxy_url}
+
+        browser = await p.chromium.launch(
+            headless=False,
+            proxy=proxy
+        )
         context = await browser.new_context(
             viewport={"width": 1365, "height": 900},
             locale="en-US",
@@ -42,10 +52,10 @@ async def main():
         # Wait for the user to log in and close the browser
         try:
             await page.wait_for_url("**/feed/**", timeout=300_000)  # 5 min to log in
-            print("\n✓ Login detected! Capturing session...")
+            print("[OK] Login detected! Capturing session...")
             await page.wait_for_timeout(3000)  # let cookies settle
         except Exception:
-            print("\n⚠ Feed page not detected. Capturing current state anyway...")
+            print("[WARN] Feed page not detected. Capturing current state anyway...")
 
         state = await context.storage_state()
         await browser.close()
@@ -60,7 +70,7 @@ async def main():
     state_path = Path(".auth/linkedin-state.json")
     state_path.parent.mkdir(parents=True, exist_ok=True)
     state_path.write_text(json_str, encoding="utf-8")
-    print(f"✓ Saved {cookie_count} cookies to {state_path}")
+    print(f"[OK] Saved {cookie_count} cookies to {state_path}")
 
     # Also update .env
     env_path = Path(".env")
@@ -69,11 +79,11 @@ async def main():
         new_lines = [l for l in lines if not l.startswith("LINKEDIN_STORAGE_STATE_B64")]
         new_lines.append(f"LINKEDIN_STORAGE_STATE_B64={b64}")
         env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
-        print(f"✓ Updated .env with new session")
+        print("[OK] Updated .env with new session")
 
     # Push to remote if URL provided
     if remote_url:
-        print(f"\n→ Pushing session to {remote_url}...")
+        print(f"\n-> Pushing session to {remote_url}...")
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
@@ -82,17 +92,13 @@ async def main():
                 )
                 if resp.status_code == 200:
                     data = resp.json()
-                    print(f"✓ Remote updated: {data.get('message', 'OK')}")
+                    print(f"[OK] Remote updated: {data.get('message', 'OK')}")
                 else:
-                    print(f"✗ Remote returned {resp.status_code}: {resp.text}")
+                    print(f"[FAIL] Remote returned {resp.status_code}: {resp.text}")
         except Exception as exc:
-            print(f"✗ Could not reach remote: {exc}")
-            print(f"  You can manually push later with:")
-            print(f"  curl -X POST {remote_url}/api/auth/session \\")
-            print(f'    -H "Content-Type: application/json" \\')
-            print(f'    -d \'{{"storage_state_b64": "<paste b64 here>"}}\' ')
+            print(f"[FAIL] Could not reach remote: {exc}")
 
-    print("\n✓ Done! The scraper will use the new session on next request.")
+    print("\n[OK] Done! The scraper will use the new session on next request.")
 
 
 if __name__ == "__main__":
