@@ -251,6 +251,6 @@ The tests use sample HTML and dependency injection. They do not hit LinkedIn.
 - LinkedIn may trigger MFA, checkpoint, or temporary restrictions. This project does not include CAPTCHA solving, proxy rotation, stealth plugins, or access-control bypasses.
 - The official LinkedIn APIs do not provide arbitrary public profile scraping, so this challenge-style implementation uses browser-visible data instead.
 
-## Methods considered
+## Approach
 
 Chinese-language scraping repos commonly combine a public metadata pass with session-backed browser automation. The useful idea from that research is the backend split: use JSON-LD/Open Graph when public data is enough, then fall back to a real Chromium profile for pages that require login. This repo implements that pattern with a selectable `BROWSER_BACKEND` instead of hardcoding copied cookies.
