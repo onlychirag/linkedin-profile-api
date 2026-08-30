@@ -136,40 +136,6 @@ def home_page_html() -> str:
     .info-banner.aws{border-color:rgba(34,197,94,.2)}
     .info-banner.vercel{border-color:rgba(245,158,11,.2)}
 
-    /* ── Feature Comparison ── */
-    .comparison{
-      display:grid;grid-template-columns:1fr 1fr;gap:16px;
-      max-width:720px;margin:0 auto 32px;
-    }
-    .feature-card{
-      background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-      padding:18px;transition:all .3s;
-    }
-    .feature-card:hover{border-color:var(--border-hover);transform:translateY(-1px)}
-    .feature-card .label{
-      font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
-      color:var(--dim);margin-bottom:8px;
-    }
-    .feature-card .value{font-size:15px;font-weight:700;display:flex;align-items:center;gap:6px}
-    .check{color:var(--ok)}
-    .cross{color:var(--danger)}
-    .partial{color:var(--warn)}
-
-    /* ── Limitations ── */
-    .limits{
-      max-width:720px;margin:0 auto 32px;
-      background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-      padding:20px;
-    }
-    .limits h3{font-size:15px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-    .limits ul{list-style:none;display:grid;gap:8px}
-    .limits li{
-      padding:10px 14px;border-radius:8px;background:var(--glass);border:1px solid var(--border);
-      font-size:13px;color:var(--muted);line-height:1.5;
-      display:flex;align-items:flex-start;gap:10px;
-    }
-    .limits li .icon{flex-shrink:0;margin-top:1px}
-
     /* ── Workspace ── */
     .workspace{
       display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:18px;
@@ -296,15 +262,9 @@ def home_page_html() -> str:
       </div>
     </div>
 
-    <!-- Feature Comparison Grid -->
-    <div class="comparison fade-up" id="features">
-      <!-- Filled by JS -->
-    </div>
+    
 
-    <!-- Limitations -->
-    <div class="limits fade-up" id="limits-box">
-      <!-- Filled by JS -->
-    </div>
+    
 
     <section class="section fade-up" id="founders" aria-labelledby="founder-title">
       <div class="section-head">
@@ -438,71 +398,22 @@ def home_page_html() -> str:
         base: AWS_BASE,
         badge: '☁️ AWS',
         badgeClass: 'aws-badge',
-        features: [
-          { label: 'Profile Name & Headline', status: 'check', text: 'Full' },
-          { label: 'Experience (detailed)', status: 'check', text: 'Titles, companies, dates, duration' },
-          { label: 'Education (detailed)', status: 'check', text: 'School, degree, field, dates' },
-          { label: 'Skills', status: 'check', text: 'Full list' },
-          { label: 'Certifications', status: 'check', text: 'Name, issuer, dates' },
-          { label: 'Languages', status: 'check', text: 'Full list' },
-          { label: 'Profile Photo', status: 'check', text: 'HD via proxy' },
-          { label: 'About / Summary', status: 'check', text: 'Full text' },
-        ],
-        limits: [
-          { icon: '⚡', text: 'Runs on AWS datacenter IP — LinkedIn may flag the session after repeated use, requiring a cookie refresh.' },
-          { icon: '🔄', text: 'Session cookie must be periodically refreshed via the stealth_login.py script.' },
-          { icon: '💰', text: 'Requires a running EC2 instance (~$8/month for t3.micro).' },
-        ],
-        limitsTitle: '⚠️ AWS Limitations',
+        
       },
       vercel: {
         base: VERCEL_BASE,
         badge: '▲ Vercel',
         badgeClass: 'vercel-badge',
-        features: [
-          { label: 'Profile Name & Headline', status: 'check', text: 'Full' },
-          { label: 'Experience (detailed)', status: 'partial', text: 'Basic — raw text only' },
-          { label: 'Education (detailed)', status: 'partial', text: 'Basic — raw text only' },
-          { label: 'Skills', status: 'cross', text: 'Not available (requires auth)' },
-          { label: 'Certifications', status: 'cross', text: 'Not available (requires auth)' },
-          { label: 'Languages', status: 'cross', text: 'Not available (requires auth)' },
-          { label: 'Profile Photo', status: 'partial', text: 'May be blocked by LinkedIn' },
-          { label: 'About / Summary', status: 'check', text: 'Available if profile is public' },
-        ],
-        limits: [
-          { icon: '🔒', text: 'No authenticated session — LinkedIn returns only public-facing data.' },
-          { icon: '📉', text: 'Skills, certifications, and languages are NOT returned because LinkedIn hides them behind login.' },
-          { icon: '📝', text: 'Experience and education come as raw text strings instead of structured objects with dates.' },
-          { icon: '⏱️', text: 'Vercel serverless functions have a 10-second timeout on the free tier — complex profiles may fail.' },
-          { icon: '🌐', text: 'Vercel uses datacenter IPs which LinkedIn may throttle with HTTP 999 responses.' },
-        ],
-        limitsTitle: '⚠️ Vercel Limitations',
+        
       }
     };
 
     let currentMode = 'aws';
 
-    const statusIcons = { check: '✅', cross: '❌', partial: '⚠️' };
+    
 
-    function renderFeatures(mode) {
-      const grid = document.getElementById('features');
-      grid.innerHTML = MODES[mode].features.map(f => `
-        <div class="feature-card">
-          <div class="label">${f.label}</div>
-          <div class="value"><span class="${f.status}">${statusIcons[f.status]}</span> ${f.text}</div>
-        </div>
-      `).join('');
-    }
-
-    function renderLimits(mode) {
-      const box = document.getElementById('limits-box');
-      const m = MODES[mode];
-      box.innerHTML = `
-        <h3>${m.limitsTitle}</h3>
-        <ul>${m.limits.map(l => `<li><span class="icon">${l.icon}</span>${l.text}</li>`).join('')}</ul>
-      `;
-    }
-
+    
+    
     function switchMode(mode) {
       currentMode = mode;
       document.querySelectorAll('.toggle-btn').forEach(b => {
@@ -513,8 +424,7 @@ def home_page_html() -> str:
       const badge = document.getElementById('mode-badge');
       badge.textContent = MODES[mode].badge;
       badge.className = 'panel-badge ' + MODES[mode].badgeClass;
-      renderFeatures(mode);
-      renderLimits(mode);
+      
     }
 
     document.querySelectorAll('.toggle-btn').forEach(btn => {
