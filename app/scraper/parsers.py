@@ -49,7 +49,9 @@ NOISE = {
     "loading",
     "people also viewed",
     "recommendations",
-    "show all",
+    "show credential",
+    "show credentials",
+    "show project",
     "show less",
     "show more",
     "sign in",
@@ -321,6 +323,8 @@ def _candidate_item_lines(soup: BeautifulSoup) -> list[list[str]]:
     selectors = [
         ".pvs-entity",
         "li.pvs-list__paged-list-item",
+        "li.pvs-list__item--with-top-padding",
+        "ul.pvs-list > li",
         "li.artdeco-list__item",
         "li.experience-item",
         "li.education__list-item",
@@ -740,9 +744,14 @@ def _parse_certification(lines: list[str]) -> CertificationItem:
             expiration = line
         elif "credential id" in lower:
             credential_id = line.split(":", 1)[-1].strip()
+            
+    issuer = _line_at(lines, 1)
+    if issuer and (issuer.lower().startswith("issued") or "expires" in issuer.lower() or "credential id" in issuer.lower()):
+        issuer = None
+        
     return CertificationItem(
         name=_line_at(lines, 0),
-        issuer=_line_at(lines, 1),
+        issuer=issuer,
         issue_date=issue,
         expiration_date=expiration,
         credential_id=credential_id,
