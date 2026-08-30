@@ -264,7 +264,8 @@ class LinkedInScraper:
                         context = await browser.new_context(**context_args)
                 except Exception as exc:
                     raise BrowserUnavailable(
-                        "Chromium could not launch. Run `python -m playwright install chromium`."
+                        f"Chromium could not launch (headless={attempt_headless}). "
+                        f"Error: {exc}"
                     ) from exc
                 try:
                     page = context.pages[0] if context.pages else await context.new_page()
