@@ -20,6 +20,7 @@ from app.config import Settings, get_settings
 from app.errors import AuthenticationRequired, InvalidLinkedInUrl, ScraperError
 from app.models import LinkedInProfile
 from app.scraper.linkedin import LinkedInScraper
+from app.compare_page import compare_page_html
 from app.scraper.session import has_persistent_user_data_dir, load_storage_state_data
 
 
@@ -330,6 +331,7 @@ def home_page_html() -> str:
       <div class="brand"><span class="brand-mark">in</span><span>Ontross</span></div>
       <nav>
         <a href="/docs">Docs</a>
+        <a href="/compare">Compare</a>
         <a href="#founders">Founder Radar</a>
         <a href="/health">Health</a>
         <a href="/api/profile?url=https%3A%2F%2Fwww.linkedin.com%2Fin%2Fchirag-kakwani-8b4055284%2F">Sample JSON</a>
@@ -746,6 +748,10 @@ def create_app() -> FastAPI:
     @app.get("/ui", response_class=HTMLResponse)
     async def ui() -> str:
         return home_page_html()
+
+    @app.get("/compare", response_class=HTMLResponse)
+    async def compare() -> str:
+        return compare_page_html()
 
     @app.get("/health")
     async def health() -> dict[str, str | bool]:
