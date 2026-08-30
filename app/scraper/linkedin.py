@@ -160,7 +160,7 @@ class LinkedInScraper:
             timeout=self.settings.request_timeout_ms / 1000,
         ) as client:
             response = await client.get(url)
-            if response.status_code in {401, 403} or self._is_auth_wall(str(response.url)):
+            if response.status_code in {401, 403} or self._is_auth_wall(str(response.url), response.text):
                 raise AuthenticationRequired(
                     "LinkedIn rejected the stored session or redirected to login."
                 )
@@ -182,7 +182,7 @@ class LinkedInScraper:
                 detail_response = await client.get(detail_url)
                 if (
                     detail_response.status_code >= 400
-                    or self._is_auth_wall(str(detail_response.url))
+                    or self._is_auth_wall(str(detail_response.url), detail_response.text)
                     or f"/details/{section}" not in str(detail_response.url)
                 ):
                     profile.extraction.warnings.append(
@@ -200,7 +200,7 @@ class LinkedInScraper:
             if not profile.education:
                 mobile_response = await client.get(url, headers=self._http_headers(mobile=True))
                 if mobile_response.status_code < 400 and not self._is_auth_wall(
-                    str(mobile_response.url)
+                    str(mobile_response.url), mobile_response.text
                 ):
                     education = parse_compact_profile_education(
                         mobile_response.text,
@@ -431,12 +431,14 @@ class LinkedInScraper:
                     continue
 
     @staticmethod
-    def _is_auth_wall(url: str) -> bool:
+    def _is_auth_wall(url: str, html: str = "") -> bool:
         lowered = url.lower()
-        return any(
-            marker in lowered
-            for marker in ("/login", "/checkpoint", "uas/login", "authwall")
-        )
+        if any(marker in lowered for marker in ("/login", "/checkpoint", "uas/login", "authwall")):
+            return True
+        if html:
+            if "window.location.href = " in html and "authwall?trk=" in html:
+                return True
+        return False
 
     @staticmethod
     def _cookies_from_storage_state(storage_state: dict[str, Any]) -> httpx.Cookies:
