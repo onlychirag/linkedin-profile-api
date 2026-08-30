@@ -196,7 +196,7 @@ def parse_detail_section_html(html: str, section: str) -> list[Any]:
     if section == "skills":
         return [_parse_skill(lines) for lines in groups if lines and _looks_like_skill(lines)]
     if section == "certifications":
-        return [_parse_certification(lines) for lines in groups if lines]
+        return [c for lines in groups if lines for c in _parse_certifications(lines)]
     if section == "languages":
         return [_parse_language(lines) for lines in groups if lines and len(lines[0]) <= 80]
     return []
@@ -211,7 +211,7 @@ def parse_detail_section_text(text: str, section: str) -> list[Any]:
     if section == "skills":
         return [_parse_skill(lines) for lines in groups if lines and _looks_like_skill(lines)]
     if section == "certifications":
-        return [_parse_certification(lines) for lines in groups if lines]
+        return [c for lines in groups if lines for c in _parse_certifications(lines)]
     if section == "languages":
         return [_parse_language(lines) for lines in groups if lines and len(lines[0]) <= 80]
     return []
@@ -730,31 +730,60 @@ def _parse_skill(lines: list[str]) -> SkillItem:
     return SkillItem(name=lines[0], context=lines[1:], source_text=lines)
 
 
-def _parse_certification(lines: list[str]) -> CertificationItem:
-    issue = None
-    expiration = None
-    credential_id = None
-    for line in lines:
+def _parse_certifications(lines: list[str]) -> list[CertificationItem]:
+    if not lines:
+        return []
+    
+    certs = []
+    current_name = None
+    current_issuer = None
+    
+    if len(lines) >= 2 and not any(k in lines[1].lower() for k in ("issued", "expires", "credential id", "credential")):
+        current_name = lines[0]
+        current_issuer = lines[1]
+        i = 2
+    else:
+        current_name = lines[0]
+        i = 1
+        
+    current_issue = None
+    current_expiration = None
+    current_credential = None
+    
+    def flush():
+        nonlocal current_name, current_issue, current_expiration, current_credential
+        if current_name:
+            certs.append(CertificationItem(
+                name=current_name,
+                issuer=current_issuer,
+                issue_date=current_issue,
+                expiration_date=current_expiration,
+                credential_id=current_credential,
+                source_text=lines,
+            ))
+        current_name = None
+        current_issue = None
+        current_expiration = None
+        current_credential = None
+        
+    while i < len(lines):
+        line = lines[i]
         lower = line.lower()
         if lower.startswith("issued"):
-            issue = line
+            current_issue = line
         elif "expires" in lower:
-            expiration = line
+            current_expiration = line
         elif "credential id" in lower:
-            credential_id = line.split(":", 1)[-1].strip()
-            
-    issuer = _line_at(lines, 1)
-    if issuer and (issuer.lower().startswith("issued") or "expires" in issuer.lower() or "credential id" in issuer.lower()):
-        issuer = None
+            current_credential = line.split(":", 1)[-1].strip()
+        elif "credential" in lower:
+            pass
+        else:
+            flush()
+            current_name = line
+        i += 1
         
-    return CertificationItem(
-        name=_line_at(lines, 0),
-        issuer=issuer,
-        issue_date=issue,
-        expiration_date=expiration,
-        credential_id=credential_id,
-        source_text=lines,
-    )
+    flush()
+    return certs
 
 
 def _parse_language(lines: list[str]) -> LanguageItem:
