@@ -20,7 +20,6 @@ from app.config import Settings, get_settings
 from app.errors import AuthenticationRequired, InvalidLinkedInUrl, ScraperError
 from app.models import LinkedInProfile
 from app.scraper.linkedin import LinkedInScraper
-from app.compare_page import compare_page_html
 from app.scraper.session import has_persistent_user_data_dir, load_storage_state_data
 
 
@@ -43,11 +42,11 @@ def home_page_html() -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ontross — LinkedIn Profile API</title>
-  <meta name="description" content="Paste a LinkedIn profile URL and get structured JSON data for experience, education, skills, and more.">
+  <title>Ontross — Backend Comparison</title>
+  <meta name="description" content="Compare AWS (full) vs Vercel (public-only) LinkedIn scraper backends side-by-side.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     :root{
@@ -55,16 +54,16 @@ def home_page_html() -> str:
       --border:rgba(255,255,255,.08);--border-hover:rgba(255,255,255,.15);
       --ink:#e8ecf4;--muted:#8896b0;--dim:#5a6a85;
       --accent:#3b82f6;--accent2:#8b5cf6;
-      --ok:#22c55e;--danger:#ef4444;
+      --ok:#22c55e;--danger:#ef4444;--warn:#f59e0b;
       --grad:linear-gradient(135deg,#3b82f6,#8b5cf6);
       --glow:0 0 30px rgba(59,130,246,.15);
-      --radius:12px;
+      --radius:14px;
     }
-    html{scroll-behavior:smooth;overflow-x:clip}
+    html{scroll-behavior:smooth}
     body{
-      font-family:'Inter',system-ui,-apple-system,sans-serif;
+      font-family:'Inter',system-ui,sans-serif;
       background:var(--bg);color:var(--ink);
-      min-height:100vh;overflow-x:clip;
+      min-height:100vh;
       background-image:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(59,130,246,.12),transparent);
     }
 
@@ -75,10 +74,10 @@ def home_page_html() -> str:
       background:rgba(9,13,26,.85);backdrop-filter:blur(20px);
     }
     .topbar-inner{
-      max-width:1200px;margin:0 auto;padding:0 24px;
+      max-width:1100px;margin:0 auto;padding:0 24px;
       min-height:64px;display:flex;align-items:center;justify-content:space-between;gap:16px;
     }
-    .brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:800;letter-spacing:-.01em}
+    .brand{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:800;letter-spacing:-.01em;text-decoration:none;color:var(--ink)}
     .brand-mark{
       width:34px;height:34px;border-radius:8px;display:grid;place-items:center;
       background:var(--grad);color:#fff;font-weight:900;font-size:14px;
@@ -89,127 +88,105 @@ def home_page_html() -> str:
       color:var(--muted);text-decoration:none;
       border:1px solid transparent;transition:all .2s;
     }
-    nav a:hover{color:var(--ink);background:var(--glass);border-color:var(--border)}
+    nav a:hover,nav a.active{color:var(--ink);background:var(--glass);border-color:var(--border)}
 
-    /* ── Layout ── */
-    .container{max-width:1200px;margin:0 auto;padding:0 24px}
+    /* ── Container ── */
+    .container{max-width:1100px;margin:0 auto;padding:0 24px}
 
     /* ── Hero ── */
-    .hero{padding:72px 0 40px;display:grid;grid-template-columns:1.3fr .7fr;gap:32px;align-items:center}
+    .hero{padding:56px 0 32px;text-align:center}
     .hero h1{
-      font-size:54px;font-weight:900;line-height:1.05;letter-spacing:-.03em;
+      font-size:42px;font-weight:900;line-height:1.1;letter-spacing:-.03em;
       background:linear-gradient(135deg,#fff 40%,#8b9dc3);
-      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-      background-clip:text;
+      -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
     }
-    .hero-sub{color:var(--muted);font-size:17px;line-height:1.65;margin-top:16px;max-width:540px}
-    .badges{display:flex;gap:10px;margin-top:24px;flex-wrap:wrap}
-    .badge{
-      display:inline-flex;align-items:center;gap:7px;
-      padding:8px 14px;border-radius:999px;font-size:12px;font-weight:700;
-      background:var(--glass);border:1px solid var(--border);color:var(--muted);
-      letter-spacing:.02em;text-transform:uppercase;
-    }
-    .badge .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);animation:pulse 2s infinite}
-    .badge .dot.blue{background:var(--accent);animation:none}
-    .badge .dot.violet{background:var(--accent2);animation:none}
-    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    .hero-sub{color:var(--muted);font-size:16px;line-height:1.6;margin-top:12px;max-width:600px;margin-left:auto;margin-right:auto}
 
-    .endpoint-card{
+    /* ── Toggle ── */
+    .toggle-bar{
+      display:flex;justify-content:center;gap:0;margin:32px auto 28px;
+      background:var(--surface);border:1px solid var(--border);border-radius:12px;
+      padding:4px;max-width:480px;
+    }
+    .toggle-btn{
+      flex:1;padding:12px 20px;border:none;border-radius:9px;
+      font-family:inherit;font-size:14px;font-weight:700;
+      cursor:pointer;transition:all .25s;
+      background:transparent;color:var(--muted);
+      display:flex;align-items:center;justify-content:center;gap:8px;
+    }
+    .toggle-btn.active{
+      background:var(--grad);color:#fff;
+      box-shadow:0 4px 16px rgba(59,130,246,.3);
+    }
+    .toggle-btn:not(.active):hover{color:var(--ink);background:var(--glass)}
+    .toggle-icon{font-size:16px}
+
+    /* ── Info Banner ── */
+    .info-banner{
+      max-width:720px;margin:0 auto 28px;padding:16px 20px;
+      border-radius:var(--radius);border:1px solid var(--border);
+      background:var(--surface);
+      display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;
+      transition:all .3s;
+    }
+    .info-banner .icon{font-size:22px;margin-top:2px}
+    .info-banner h3{font-size:14px;font-weight:800;margin-bottom:4px}
+    .info-banner p{color:var(--muted);font-size:13px;line-height:1.55}
+    .info-banner.aws{border-color:rgba(34,197,94,.2)}
+    .info-banner.vercel{border-color:rgba(245,158,11,.2)}
+
+    /* ── Feature Comparison ── */
+    .comparison{
+      display:grid;grid-template-columns:1fr 1fr;gap:16px;
+      max-width:720px;margin:0 auto 32px;
+    }
+    .feature-card{
       background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-      padding:24px;display:flex;flex-direction:column;gap:14px;
+      padding:18px;transition:all .3s;
     }
-    .endpoint-label{color:var(--dim);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em}
-    .endpoint-code{
-      font-family:'SF Mono',Consolas,'Liberation Mono',monospace;font-size:13px;
-      background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;
-      padding:14px;color:var(--accent);overflow-wrap:anywhere;line-height:1.5;
+    .feature-card:hover{border-color:var(--border-hover);transform:translateY(-1px)}
+    .feature-card .label{
+      font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;
+      color:var(--dim);margin-bottom:8px;
     }
-    .endpoint-card a{color:var(--accent);font-size:13px;font-weight:700;text-decoration:none}
-    .endpoint-card a:hover{text-decoration:underline}
+    .feature-card .value{font-size:15px;font-weight:700;display:flex;align-items:center;gap:6px}
+    .check{color:var(--ok)}
+    .cross{color:var(--danger)}
+    .partial{color:var(--warn)}
 
-    /* ── Founder Radar ── */
-    .section{padding:40px 0}
-    .section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:20px}
-    .eyebrow{
-      font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
-      background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
-      margin-bottom:6px;
-    }
-    .section-head h2{font-size:28px;font-weight:800;letter-spacing:-.02em}
-
-    .founder-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
-    .founder-card{
+    /* ── Limitations ── */
+    .limits{
+      max-width:720px;margin:0 auto 32px;
       background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-      padding:20px;transition:all .3s ease;
+      padding:20px;
     }
-    .founder-card:hover{border-color:var(--border-hover);box-shadow:var(--glow);transform:translateY(-2px)}
-    .founder-head{display:flex;align-items:center;gap:14px;margin-bottom:14px}
-    .avatar{
-      width:46px;height:46px;border-radius:10px;display:grid;place-items:center;
-      font-weight:900;font-size:15px;color:#fff;flex-shrink:0;
+    .limits h3{font-size:15px;font-weight:800;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+    .limits ul{list-style:none;display:grid;gap:8px}
+    .limits li{
+      padding:10px 14px;border-radius:8px;background:var(--glass);border:1px solid var(--border);
+      font-size:13px;color:var(--muted);line-height:1.5;
+      display:flex;align-items:flex-start;gap:10px;
     }
-    .avatar.teal{background:linear-gradient(135deg,#0d9488,#14b8a6)}
-    .avatar.violet{background:linear-gradient(135deg,#7c3aed,#a78bfa)}
-    .founder-card h3{font-size:20px;font-weight:800;letter-spacing:-.01em}
-    .role{color:var(--muted);font-size:14px;font-weight:500;line-height:1.4;margin-top:2px}
-    .pill-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
-    .pill{
-      padding:5px 10px;border-radius:999px;font-size:11px;font-weight:700;
-      background:var(--glass);border:1px solid var(--border);color:var(--muted);
-    }
-
-    .expand-btn{
-      display:inline-flex;align-items:center;gap:6px;margin-top:14px;padding:6px 12px;
-      border-radius:8px;font-size:12px;font-weight:700;color:var(--accent);
-      background:transparent;border:1px solid var(--border);cursor:pointer;
-      transition:all .2s;
-    }
-    .expand-btn:hover{background:var(--glass);border-color:var(--accent)}
-    .expand-btn .arrow{transition:transform .2s;display:inline-block}
-    .expand-btn.open .arrow{transform:rotate(180deg)}
-
-    .founder-details{
-      max-height:0;overflow:hidden;transition:max-height .4s ease;
-    }
-    .founder-details.open{max-height:600px}
-
-    .detail-label{
-      color:var(--dim);font-size:11px;font-weight:800;text-transform:uppercase;
-      letter-spacing:.1em;margin:16px 0 8px;
-    }
-    .timeline{list-style:none;display:grid;gap:6px}
-    .timeline li{
-      padding-left:12px;border-left:2px solid rgba(59,130,246,.3);
-      color:var(--muted);font-size:13px;line-height:1.5;
-    }
-    .timeline strong{color:var(--ink)}
-
-    .founder-actions{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:16px}
-    .btn-scrape{
-      padding:10px 16px;border-radius:8px;border:0;font-weight:800;font-size:13px;
-      background:var(--grad);color:#fff;cursor:pointer;transition:all .2s;
-      font-family:inherit;
-    }
-    .btn-scrape:hover{opacity:.9;box-shadow:0 4px 20px rgba(59,130,246,.3)}
-    .btn-outline{
-      padding:10px 14px;border-radius:8px;font-size:13px;font-weight:700;
-      background:transparent;border:1px solid var(--border);color:var(--muted);
-      text-decoration:none;display:inline-flex;align-items:center;justify-content:center;
-      transition:all .2s;
-    }
-    .btn-outline:hover{border-color:var(--border-hover);color:var(--ink)}
+    .limits li .icon{flex-shrink:0;margin-top:1px}
 
     /* ── Workspace ── */
     .workspace{
       display:grid;grid-template-columns:minmax(300px,420px) 1fr;gap:18px;
-      align-items:start;padding-bottom:60px;
+      align-items:start;padding-bottom:60px;max-width:1100px;margin:0 auto;
     }
     .panel{
       background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
       padding:22px;
     }
     .panel h2{font-size:18px;font-weight:800;margin-bottom:16px;letter-spacing:-.01em}
+    .panel-badge{
+      display:inline-flex;align-items:center;gap:6px;padding:4px 10px;
+      border-radius:999px;font-size:11px;font-weight:700;margin-left:8px;
+      vertical-align:middle;
+    }
+    .panel-badge.aws-badge{background:rgba(34,197,94,.1);color:var(--ok);border:1px solid rgba(34,197,94,.2)}
+    .panel-badge.vercel-badge{background:rgba(245,158,11,.1);color:var(--warn);border:1px solid rgba(245,158,11,.2)}
     label{display:block;margin-bottom:8px;color:var(--dim);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
     input[type="url"]{
       width:100%;padding:12px 14px;border-radius:8px;font-size:14px;
@@ -232,6 +209,9 @@ def home_page_html() -> str:
     .submit-btn.loading .label{visibility:hidden}
     .submit-btn.loading .spinner{display:block;position:absolute;top:50%;left:50%;margin:-9px 0 0 -9px}
     @keyframes spin{to{transform:rotate(360deg)}}
+    .status-msg{margin-top:14px;font-size:13px;color:var(--muted);min-height:20px;overflow-wrap:anywhere}
+    .status-msg.ok{color:var(--ok)}
+    .status-msg.error{color:var(--danger)}
 
     .summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
     .summary-item{
@@ -239,52 +219,6 @@ def home_page_html() -> str:
     }
     .summary-item span{display:block;color:var(--dim);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
     .summary-item strong{display:block;margin-top:5px;font-size:16px;overflow-wrap:anywhere}
-    .status-msg{margin-top:14px;font-size:13px;color:var(--muted);min-height:20px;overflow-wrap:anywhere}
-    .status-msg.ok{color:var(--ok)}
-    .status-msg.error{color:var(--danger)}
-    .profile-preview{
-      display:none;align-items:center;gap:12px;margin-top:16px;padding:12px;
-      border-radius:8px;background:var(--glass);border:1px solid var(--border);
-    }
-    .profile-preview.visible{display:flex}
-    .profile-photo,.profile-placeholder{
-      width:64px;height:64px;border-radius:50%;flex-shrink:0;border:1px solid var(--border);
-    }
-    .profile-photo{object-fit:cover;background:rgba(255,255,255,.03)}
-    .profile-placeholder{
-      display:none;place-items:center;background:var(--grad);color:#fff;
-      font-size:18px;font-weight:900;
-    }
-    .profile-preview.no-photo .profile-photo{display:none}
-    .profile-preview.no-photo .profile-placeholder{display:grid}
-    .preview-copy{min-width:0}
-    .preview-copy strong{display:block;font-size:15px;overflow-wrap:anywhere}
-    .preview-copy span{display:block;margin-top:4px;color:var(--muted);font-size:12px;line-height:1.45;overflow-wrap:anywhere}
-    .profile-details{
-      display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);
-      gap:14px;
-    }
-    .profile-details.visible{display:grid}
-    .detail-block{display:grid;gap:8px}
-    .detail-heading{
-      color:var(--dim);font-size:11px;font-weight:800;text-transform:uppercase;
-      letter-spacing:.1em;
-    }
-    .detail-text{color:var(--muted);font-size:13px;line-height:1.55;overflow-wrap:anywhere}
-    .tag-list{display:flex;flex-wrap:wrap;gap:6px}
-    .tag{
-      max-width:100%;padding:6px 9px;border-radius:999px;background:var(--glass);
-      border:1px solid var(--border);color:var(--ink);font-size:12px;font-weight:700;
-      overflow-wrap:anywhere;
-    }
-    .compact-list{list-style:none;display:grid;gap:8px}
-    .compact-list li{
-      padding-left:10px;border-left:2px solid rgba(59,130,246,.35);
-      min-width:0;
-    }
-    .compact-list strong{display:block;color:var(--ink);font-size:13px;line-height:1.35;overflow-wrap:anywhere}
-    .compact-list span{display:block;margin-top:3px;color:var(--muted);font-size:12px;line-height:1.45;overflow-wrap:anywhere}
-    .empty-detail{color:var(--dim);font-size:12px;line-height:1.45}
 
     pre{
       margin:0;min-height:480px;max-height:calc(100vh - 200px);overflow:auto;
@@ -299,7 +233,6 @@ def home_page_html() -> str:
     pre .json-bool{color:#fb923c}
     pre .json-null{color:#6b7280}
 
-    /* ── Footer ── */
     footer{
       border-top:1px solid var(--border);padding:28px 0;
       text-align:center;color:var(--dim);font-size:13px;
@@ -307,20 +240,14 @@ def home_page_html() -> str:
     footer a{color:var(--muted);text-decoration:none;font-weight:600}
     footer a:hover{color:var(--ink)}
 
-    /* ── Fade-in animation ── */
     .fade-up{opacity:0;transform:translateY(20px);transition:opacity .6s ease,transform .6s ease}
     .fade-up.visible{opacity:1;transform:translateY(0)}
 
-    /* ── Responsive ── */
     @media(max-width:860px){
-      .hero{grid-template-columns:1fr;padding:48px 0 28px}
-      .hero h1{font-size:36px}
-      .founder-grid{grid-template-columns:1fr}
+      .hero h1{font-size:30px}
+      .comparison{grid-template-columns:1fr}
       .workspace{grid-template-columns:1fr}
-      .section-head{flex-direction:column;align-items:flex-start}
       .topbar-inner{flex-direction:column;align-items:flex-start;padding:14px 24px;gap:10px}
-      nav{width:100%;display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
-      nav a{text-align:center;justify-content:center}
       pre{min-height:320px;max-height:none}
     }
   </style>
@@ -328,34 +255,56 @@ def home_page_html() -> str:
 <body>
   <div class="topbar">
     <div class="topbar-inner">
-      <div class="brand"><span class="brand-mark">in</span><span>Ontross</span></div>
+      <a href="/" class="brand"><span class="brand-mark">in</span><span>Ontross</span></a>
       <nav>
+        <a href="/">Home</a>
         <a href="/docs">Docs</a>
-        <a href="/compare">Compare</a>
-        <a href="#founders">Founder Radar</a>
         <a href="/health">Health</a>
-        <a href="/api/profile?url=https%3A%2F%2Fwww.linkedin.com%2Fin%2Fchirag-kakwani-8b4055284%2F">Sample JSON</a>
       </nav>
     </div>
   </div>
 
   <main class="container">
     <section class="hero fade-up">
-      <div>
-        <h1>LinkedIn profile data, returned as JSON.</h1>
-        <p class="hero-sub">Paste a LinkedIn profile URL and get structured profile, experience, education, and extraction metadata from the deployed API.</p>
-        <div class="badges">
-          <span class="badge"><span class="dot"></span> Live</span>
-          <span class="badge"><span class="dot blue"></span> HTTPS</span>
-          <span class="badge"><span class="dot violet"></span> JSON Output</span>
-        </div>
-      </div>
-      <aside class="endpoint-card">
-        <div class="endpoint-label">GET Endpoint</div>
-        <div class="endpoint-code">/api/profile?url=https://www.linkedin.com/in/example/</div>
-        <a href="/openapi.json">OpenAPI schema &rarr;</a>
-      </aside>
+      <h1>AWS vs Vercel Backend</h1>
+      <p class="hero-sub">Compare two deployment modes for the LinkedIn Profile API. AWS uses an authenticated browser for full data. Vercel uses public-only scraping.</p>
     </section>
+
+    <!-- Toggle -->
+    <div class="toggle-bar fade-up" id="mode-toggle">
+      <button class="toggle-btn active" data-mode="aws" type="button">
+        <span class="toggle-icon">☁️</span> AWS Server
+      </button>
+      <button class="toggle-btn" data-mode="vercel" type="button">
+        <span class="toggle-icon">▲</span> Vercel
+      </button>
+    </div>
+
+    <!-- AWS Info -->
+    <div class="info-banner aws fade-up" id="info-aws">
+      <span class="icon">🟢</span>
+      <div>
+        <h3>AWS Server — Full Power Mode</h3>
+        <p>Uses a headless Chromium browser on AWS (54.152.33.214) with an authenticated LinkedIn session. Extracts the richest data including detailed experience with dates, education fields, skills, certifications, and languages.</p>
+      </div>
+    </div>
+    <div class="info-banner vercel fade-up" id="info-vercel" style="display:none">
+      <span class="icon">🟡</span>
+      <div>
+        <h3>Vercel — Serverless Public Mode</h3>
+        <p>Deployed on Vercel's serverless edge network at <strong>ontross.vercel.app</strong>. Uses public HTTP scraping without an authenticated browser session. Fast and free, but returns limited data compared to the full AWS scraper.</p>
+      </div>
+    </div>
+
+    <!-- Feature Comparison Grid -->
+    <div class="comparison fade-up" id="features">
+      <!-- Filled by JS -->
+    </div>
+
+    <!-- Limitations -->
+    <div class="limits fade-up" id="limits-box">
+      <!-- Filled by JS -->
+    </div>
 
     <section class="section fade-up" id="founders" aria-labelledby="founder-title">
       <div class="section-head">
@@ -441,9 +390,10 @@ def home_page_html() -> str:
       </div>
     </section>
 
+    <!-- Workspace -->
     <section class="workspace fade-up" id="workspace">
       <div class="panel">
-        <h2>Profile Lookup</h2>
+        <h2>Profile Lookup <span class="panel-badge aws-badge" id="mode-badge">☁️ AWS</span></h2>
         <form id="scrape-form">
           <label for="profile-url">Profile URL</label>
           <input id="profile-url" name="profile-url" type="url"
@@ -454,58 +404,15 @@ def home_page_html() -> str:
           </button>
           <div id="status" class="status-msg"></div>
         </form>
-        <div id="profile-preview" class="profile-preview">
-          <img id="profile-photo" class="profile-photo" alt="">
-          <div id="profile-placeholder" class="profile-placeholder">?</div>
-          <div class="preview-copy">
-            <strong id="preview-name">—</strong>
-            <span id="preview-meta">—</span>
-          </div>
-        </div>
-        <div class="summary">
-          <div class="summary-item"><span>Name</span><strong id="summary-name">—</strong></div>
-          <div class="summary-item"><span>Location</span><strong id="summary-location">—</strong></div>
-          <div class="summary-item"><span>Experience</span><strong id="summary-experience">—</strong></div>
-          <div class="summary-item"><span>Education</span><strong id="summary-education">—</strong></div>
-          <div class="summary-item"><span>Photo</span><strong id="summary-photo">—</strong></div>
-          <div class="summary-item"><span>Skills</span><strong id="summary-skills">—</strong></div>
-          <div class="summary-item"><span>Certificates</span><strong id="summary-certifications">—</strong></div>
-          <div class="summary-item"><span>Languages</span><strong id="summary-languages">—</strong></div>
-        </div>
-        <div id="profile-details" class="profile-details">
-          <section class="detail-block">
-            <div class="detail-heading">Headline</div>
-            <p id="detail-headline" class="detail-text">—</p>
-          </section>
-          <section class="detail-block">
-            <div class="detail-heading">About</div>
-            <p id="detail-about" class="detail-text">—</p>
-          </section>
-          <section class="detail-block">
-            <div class="detail-heading">Skills</div>
-            <div id="detail-skills" class="tag-list"></div>
-          </section>
-          <section class="detail-block">
-            <div class="detail-heading">Certifications</div>
-            <ul id="detail-certifications" class="compact-list"></ul>
-          </section>
-          <section class="detail-block">
-            <div class="detail-heading">Experience</div>
-            <ul id="detail-experience" class="compact-list"></ul>
-          </section>
-          <section class="detail-block">
-            <div class="detail-heading">Education</div>
-            <ul id="detail-education" class="compact-list"></ul>
-          </section>
-          <section class="detail-block">
-            <div class="detail-heading">Languages</div>
-            <ul id="detail-languages" class="compact-list"></ul>
-          </section>
-          <section class="detail-block">
-            <div class="detail-heading">Extraction</div>
-            <div id="detail-strategies" class="tag-list"></div>
-            <ul id="detail-warnings" class="compact-list"></ul>
-          </section>
+        <div class="summary" id="summary-grid">
+          <div class="summary-item"><span>Name</span><strong id="s-name">—</strong></div>
+          <div class="summary-item"><span>Location</span><strong id="s-location">—</strong></div>
+          <div class="summary-item"><span>Experience</span><strong id="s-experience">—</strong></div>
+          <div class="summary-item"><span>Education</span><strong id="s-education">—</strong></div>
+          <div class="summary-item"><span>Skills</span><strong id="s-skills">—</strong></div>
+          <div class="summary-item"><span>Certifications</span><strong id="s-certs">—</strong></div>
+          <div class="summary-item"><span>Languages</span><strong id="s-langs">—</strong></div>
+          <div class="summary-item"><span>Photos</span><strong id="s-photos">—</strong></div>
         </div>
       </div>
       <div class="panel">
@@ -523,6 +430,107 @@ def home_page_html() -> str:
   </footer>
 
   <script>
+    const AWS_BASE = 'http://54.152.33.214:8000';
+    const VERCEL_BASE = 'https://ontross.vercel.app';
+
+    const MODES = {
+      aws: {
+        base: AWS_BASE,
+        badge: '☁️ AWS',
+        badgeClass: 'aws-badge',
+        features: [
+          { label: 'Profile Name & Headline', status: 'check', text: 'Full' },
+          { label: 'Experience (detailed)', status: 'check', text: 'Titles, companies, dates, duration' },
+          { label: 'Education (detailed)', status: 'check', text: 'School, degree, field, dates' },
+          { label: 'Skills', status: 'check', text: 'Full list' },
+          { label: 'Certifications', status: 'check', text: 'Name, issuer, dates' },
+          { label: 'Languages', status: 'check', text: 'Full list' },
+          { label: 'Profile Photo', status: 'check', text: 'HD via proxy' },
+          { label: 'About / Summary', status: 'check', text: 'Full text' },
+        ],
+        limits: [
+          { icon: '⚡', text: 'Runs on AWS datacenter IP — LinkedIn may flag the session after repeated use, requiring a cookie refresh.' },
+          { icon: '🔄', text: 'Session cookie must be periodically refreshed via the stealth_login.py script.' },
+          { icon: '💰', text: 'Requires a running EC2 instance (~$8/month for t3.micro).' },
+        ],
+        limitsTitle: '⚠️ AWS Limitations',
+      },
+      vercel: {
+        base: VERCEL_BASE,
+        badge: '▲ Vercel',
+        badgeClass: 'vercel-badge',
+        features: [
+          { label: 'Profile Name & Headline', status: 'check', text: 'Full' },
+          { label: 'Experience (detailed)', status: 'partial', text: 'Basic — raw text only' },
+          { label: 'Education (detailed)', status: 'partial', text: 'Basic — raw text only' },
+          { label: 'Skills', status: 'cross', text: 'Not available (requires auth)' },
+          { label: 'Certifications', status: 'cross', text: 'Not available (requires auth)' },
+          { label: 'Languages', status: 'cross', text: 'Not available (requires auth)' },
+          { label: 'Profile Photo', status: 'partial', text: 'May be blocked by LinkedIn' },
+          { label: 'About / Summary', status: 'check', text: 'Available if profile is public' },
+        ],
+        limits: [
+          { icon: '🔒', text: 'No authenticated session — LinkedIn returns only public-facing data.' },
+          { icon: '📉', text: 'Skills, certifications, and languages are NOT returned because LinkedIn hides them behind login.' },
+          { icon: '📝', text: 'Experience and education come as raw text strings instead of structured objects with dates.' },
+          { icon: '⏱️', text: 'Vercel serverless functions have a 10-second timeout on the free tier — complex profiles may fail.' },
+          { icon: '🌐', text: 'Vercel uses datacenter IPs which LinkedIn may throttle with HTTP 999 responses.' },
+        ],
+        limitsTitle: '⚠️ Vercel Limitations',
+      }
+    };
+
+    let currentMode = 'aws';
+
+    const statusIcons = { check: '✅', cross: '❌', partial: '⚠️' };
+
+    function renderFeatures(mode) {
+      const grid = document.getElementById('features');
+      grid.innerHTML = MODES[mode].features.map(f => `
+        <div class="feature-card">
+          <div class="label">${f.label}</div>
+          <div class="value"><span class="${f.status}">${statusIcons[f.status]}</span> ${f.text}</div>
+        </div>
+      `).join('');
+    }
+
+    function renderLimits(mode) {
+      const box = document.getElementById('limits-box');
+      const m = MODES[mode];
+      box.innerHTML = `
+        <h3>${m.limitsTitle}</h3>
+        <ul>${m.limits.map(l => `<li><span class="icon">${l.icon}</span>${l.text}</li>`).join('')}</ul>
+      `;
+    }
+
+    function switchMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('.toggle-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === mode);
+      });
+      document.getElementById('info-aws').style.display = mode === 'aws' ? '' : 'none';
+      document.getElementById('info-vercel').style.display = mode === 'vercel' ? '' : 'none';
+      const badge = document.getElementById('mode-badge');
+      badge.textContent = MODES[mode].badge;
+      badge.className = 'panel-badge ' + MODES[mode].badgeClass;
+      renderFeatures(mode);
+      renderLimits(mode);
+    }
+
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchMode(btn.dataset.mode));
+    });
+
+    // Init
+    switchMode('aws');
+
+    // Fade-in
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target) } })
+    }, { threshold: .15 });
+    document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
+
+    
     /* ── Collapse / expand founder details ── */
     function toggleDetails(btn){
       const details=btn.nextElementSibling;
@@ -530,195 +538,50 @@ def home_page_html() -> str:
       btn.classList.toggle('open');
     }
 
-    /* ── Syntax-highlighted JSON ── */
-    function highlightJSON(json){
-      var h=json.replace(/&/g,'&amp;').replace(/</g,'&lt;');
-      return h.replace(/"([^"]*)"\s*:/g,function(m,k){return '<span class="json-key">"'+k+'"</span>:'})
-              .replace(/:\s*"([^"]*)"/g,function(m,v){return ': <span class="json-str">"'+v+'"</span>'})
-              .replace(/:\s*(true|false)/g,function(m,v){return ': <span class="json-bool">'+v+'</span>'})
-              .replace(/:\s*null/g,': <span class="json-null">null</span>')
-              .replace(/:\s*(-?[0-9.]+)/g,function(m,v){return ': <span class="json-num">'+v+'</span>'});
+    // JSON highlight
+    function highlightJSON(json) {
+      var h = json.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+      return h.replace(/"([^"]*)"\s*:/g, (m, k) => '<span class="json-key">"' + k + '"</span>:')
+              .replace(/:\s*"([^"]*)"/g, (m, v) => ': <span class="json-str">"' + v + '"</span>')
+              .replace(/:\s*(true|false)/g, (m, v) => ': <span class="json-bool">' + v + '</span>')
+              .replace(/:\s*null/g, ': <span class="json-null">null</span>')
+              .replace(/:\s*(-?[0-9.]+)/g, (m, v) => ': <span class="json-num">' + v + '</span>');
     }
 
-    /* ── Fade-in on scroll ── */
-    const observer=new IntersectionObserver(entries=>{
-      entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target)}})
-    },{threshold:.15});
-    document.querySelectorAll('.fade-up').forEach(el=>observer.observe(el));
+    // Scrape form
+    const form = document.getElementById('scrape-form');
+    const input = document.getElementById('profile-url');
+    const output = document.getElementById('output');
+    const statusEl = document.getElementById('status');
+    const button = document.getElementById('submit-button');
 
-    /* ── Scraper form ── */
-    const form=document.querySelector('#scrape-form');
-    const input=document.querySelector('#profile-url');
-    const output=document.querySelector('#output');
-    const statusEl=document.querySelector('#status');
-    const button=document.querySelector('#submit-button');
-    const sName=document.querySelector('#summary-name');
-    const sLoc=document.querySelector('#summary-location');
-    const sExp=document.querySelector('#summary-experience');
-    const sEdu=document.querySelector('#summary-education');
-    const sPhoto=document.querySelector('#summary-photo');
-    const sSkills=document.querySelector('#summary-skills');
-    const sCerts=document.querySelector('#summary-certifications');
-    const sLang=document.querySelector('#summary-languages');
-    const preview=document.querySelector('#profile-preview');
-    const previewPhoto=document.querySelector('#profile-photo');
-    const previewPlaceholder=document.querySelector('#profile-placeholder');
-    const previewName=document.querySelector('#preview-name');
-    const previewMeta=document.querySelector('#preview-meta');
-    const profileDetails=document.querySelector('#profile-details');
-    const detailHeadline=document.querySelector('#detail-headline');
-    const detailAbout=document.querySelector('#detail-about');
-    const detailSkills=document.querySelector('#detail-skills');
-    const detailCertifications=document.querySelector('#detail-certifications');
-    const detailExperience=document.querySelector('#detail-experience');
-    const detailEducation=document.querySelector('#detail-education');
-    const detailLanguages=document.querySelector('#detail-languages');
-    const detailStrategies=document.querySelector('#detail-strategies');
-    const detailWarnings=document.querySelector('#detail-warnings');
-
-    function initials(name){
-      return (name||'?').split(/\s+/).filter(Boolean).slice(0,2).map(p=>p[0]).join('').toUpperCase()||'?';
+    function setSummary(p) {
+      document.getElementById('s-name').textContent = p?.name || '—';
+      document.getElementById('s-location').textContent = p?.location || '—';
+      document.getElementById('s-experience').textContent = Array.isArray(p?.experience) ? String(p.experience.length) : '—';
+      document.getElementById('s-education').textContent = Array.isArray(p?.education) ? String(p.education.length) : '—';
+      document.getElementById('s-skills').textContent = Array.isArray(p?.skills) ? String(p.skills.length) : '—';
+      document.getElementById('s-certs').textContent = Array.isArray(p?.certifications) ? String(p.certifications.length) : '—';
+      document.getElementById('s-langs').textContent = Array.isArray(p?.languages) ? String(p.languages.length) : '—';
+      document.getElementById('s-photos').textContent = Array.isArray(p?.profile_images) ? String(p.profile_images.length) : '—';
     }
 
-    function clearNode(node){
-      while(node.firstChild)node.removeChild(node.firstChild);
-    }
-
-    function textOrDash(value){
-      return value&&String(value).trim()?String(value).trim():'—';
-    }
-
-    function joinParts(parts){
-      return parts.filter(Boolean).map(String).join(' | ');
-    }
-
-    function dateRange(start,end){
-      if(start&&end)return `${start} - ${end}`;
-      return start||end||'';
-    }
-
-    function appendEmpty(node,text){
-      clearNode(node);
-      const el=document.createElement(node.tagName==='UL'?'li':'span');
-      el.className='empty-detail';
-      el.textContent=text;
-      node.appendChild(el);
-    }
-
-    function renderTags(node,items,getLabel,limit=12,emptyText='No data returned'){
-      clearNode(node);
-      const values=Array.isArray(items)?items.map(getLabel).filter(Boolean):[];
-      if(!values.length){appendEmpty(node,emptyText);return}
-      values.slice(0,limit).forEach(value=>{
-        const tag=document.createElement('span');
-        tag.className='tag';
-        tag.textContent=value;
-        node.appendChild(tag);
-      });
-      if(values.length>limit){
-        const more=document.createElement('span');
-        more.className='tag';
-        more.textContent=`+${values.length-limit} more`;
-        node.appendChild(more);
-      }
-    }
-
-    function renderList(node,items,mapItem,limit=5,emptyText='No data returned'){
-      clearNode(node);
-      const values=Array.isArray(items)?items:[];
-      if(!values.length){appendEmpty(node,emptyText);return}
-      values.slice(0,limit).forEach(item=>{
-        const mapped=mapItem(item);
-        const li=document.createElement('li');
-        const title=document.createElement('strong');
-        title.textContent=textOrDash(mapped.title);
-        li.appendChild(title);
-        if(mapped.meta){
-          const meta=document.createElement('span');
-          meta.textContent=mapped.meta;
-          li.appendChild(meta);
-        }
-        node.appendChild(li);
-      });
-      if(values.length>limit){
-        const li=document.createElement('li');
-        const title=document.createElement('strong');
-        title.textContent=`+${values.length-limit} more in JSON`;
-        li.appendChild(title);
-        node.appendChild(li);
-      }
-    }
-
-    function setSummary(p){
-      sName.textContent=p?.name||'—';
-      sLoc.textContent=p?.location||'—';
-      sExp.textContent=Array.isArray(p?.experience)?String(p.experience.length):'—';
-      sEdu.textContent=Array.isArray(p?.education)?String(p.education.length):'—';
-      sPhoto.textContent=Array.isArray(p?.profile_images)?String(p.profile_images.length):'—';
-      sSkills.textContent=Array.isArray(p?.skills)?String(p.skills.length):'—';
-      sCerts.textContent=Array.isArray(p?.certifications)?String(p.certifications.length):'—';
-      sLang.textContent=Array.isArray(p?.languages)?String(p.languages.length):'—';
-
-      preview.classList.toggle('visible',Boolean(p));
-      profileDetails.classList.toggle('visible',Boolean(p));
-      previewName.textContent=p?.name||'—';
-      previewMeta.textContent=p?.headline||p?.location||'No photo returned';
-      previewPlaceholder.textContent=initials(p?.name);
-      const imageUrl=Array.isArray(p?.profile_images)&&p.profile_images[0]?.url;
-      preview.classList.toggle('no-photo',!imageUrl);
-      previewPhoto.removeAttribute('src');
-      previewPhoto.alt=p?.name?`${p.name} profile photo`:'Profile photo';
-      if(imageUrl)previewPhoto.src='/api/image?url='+encodeURIComponent(imageUrl);
-
-      detailHeadline.textContent=textOrDash(p?.headline);
-      detailAbout.textContent=textOrDash(p?.about);
-      renderTags(detailSkills,p?.skills,item=>item.name,15,'No skills returned');
-      renderList(detailCertifications,p?.certifications,item=>({
-        title:item.name||'Untitled certification',
-        meta:joinParts([item.issuer,dateRange(item.issue_date,item.expiration_date),item.credential_id&&`Credential ${item.credential_id}`])
-      }),5,'No certifications returned');
-      renderList(detailExperience,p?.experience,item=>({
-        title:item.title||item.company||'Experience item',
-        meta:joinParts([item.company,item.employment_type,dateRange(item.start_date,item.end_date),item.duration,item.location])
-      }),5,'No experience returned');
-      renderList(detailEducation,p?.education,item=>({
-        title:item.school||'Education item',
-        meta:joinParts([item.degree,item.field_of_study,dateRange(item.start_date,item.end_date)])
-      }),4,'No education returned');
-      renderList(detailLanguages,p?.languages,item=>({
-        title:item.name||'Language',
-        meta:item.proficiency||''
-      }),5,'No languages returned');
-      renderTags(detailStrategies,p?.extraction?.strategies,item=>item,12,'No extraction strategies returned');
-      renderList(detailWarnings,p?.extraction?.warnings,item=>({
-        title:item,
-        meta:''
-      }),4,'No warnings');
-    }
-
-    previewPhoto.addEventListener('error',()=>{
-      preview.classList.add('no-photo');
-      previewMeta.textContent='Photo URL returned, but the image could not be loaded here';
-    });
-
-    document.querySelectorAll('[data-profile-url]').forEach(b=>{
-      b.addEventListener('click',()=>{input.value=b.dataset.profileUrl;form.requestSubmit()});
-    });
-
-    form.addEventListener('submit',async e=>{
+    form.addEventListener('submit', async e => {
       e.preventDefault();
-      statusEl.className='status-msg';statusEl.textContent='Running scrape…';
-      button.disabled=true;button.classList.add('loading');
-      output.textContent='{}';setSummary(null);
-      try{
-        const r=await fetch('/api/profile?url='+encodeURIComponent(input.value));
-        const t=await r.text();let p;
-        try{p=JSON.parse(t);output.innerHTML=highlightJSON(JSON.stringify(p,null,2));if(r.ok)setSummary(p)}
-        catch{output.textContent=t||'{}'}
-        if(!r.ok)throw new Error(p?.detail||'Request failed with '+r.status);
-        statusEl.className='status-msg ok';statusEl.textContent='Done';
-      }catch(err){statusEl.className='status-msg error';statusEl.textContent=err.message}
-      finally{button.disabled=false;button.classList.remove('loading')}
+      const base = MODES[currentMode].base;
+      const apiUrl = base + '/api/profile?url=' + encodeURIComponent(input.value);
+      statusEl.className = 'status-msg'; statusEl.textContent = 'Running scrape via ' + (currentMode === 'aws' ? 'AWS' : 'Vercel') + '…';
+      button.disabled = true; button.classList.add('loading');
+      output.textContent = '{}'; setSummary(null);
+      try {
+        const r = await fetch(apiUrl);
+        const t = await r.text(); let p;
+        try { p = JSON.parse(t); output.innerHTML = highlightJSON(JSON.stringify(p, null, 2)); if (r.ok) setSummary(p) }
+        catch { output.textContent = t || '{}' }
+        if (!r.ok) throw new Error(p?.detail || 'Request failed with ' + r.status);
+        statusEl.className = 'status-msg ok'; statusEl.textContent = 'Done (' + currentMode.toUpperCase() + ')';
+      } catch (err) { statusEl.className = 'status-msg error'; statusEl.textContent = err.message }
+      finally { button.disabled = false; button.classList.remove('loading') }
     });
   </script>
 </body>
@@ -748,10 +611,6 @@ def create_app() -> FastAPI:
     @app.get("/ui", response_class=HTMLResponse)
     async def ui() -> str:
         return home_page_html()
-
-    @app.get("/compare", response_class=HTMLResponse)
-    async def compare() -> str:
-        return compare_page_html()
 
     @app.get("/health")
     async def health() -> dict[str, str | bool]:
